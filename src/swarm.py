@@ -11,6 +11,7 @@ is logged. Agents never see the label, the ticker, the date, or raw price levels
 import argparse
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
@@ -67,8 +68,12 @@ def decide(setup, market, llm, tracer):
             "plan": plan, "objections": objections}
 
 
-def run(split, market, llm, tracer, limit=None, out_path=None):
-    """Decide every setup in `split`, simulate approved trades, write JSONL. Returns the records."""
+def run(split, market, llm, tracer, limit=None, out_path=None, workers=1):
+    """Decide every setup in `split`, simulate approved trades, write JSONL. Returns the records.
+
+    With workers > 1, setups are decided in parallel threads; lines are still written in
+    setup order, each as soon as it and every earlier setup are done.
+    """
     if split == "test":
         raise SystemExit("The swarm step does not run on the test split.")
     rows = market.setups[market.setups["split"] == split]
@@ -76,21 +81,25 @@ def run(split, market, llm, tracer, limit=None, out_path=None):
         rows = rows.head(limit)
     out_path = out_path or os.path.join("runs", "swarm_%s.jsonl" % split)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    def one(setup):
+        try:
+            rec = decide(setup, market, llm, tracer)
+        except Exception as e:     # one bad setup must not stop the run; it is logged as an error
+            rec = {"ticker": setup["ticker"], "date": setup["date"], "split": split,
+                   "rounds": None, "verdict": "error", "plan": None, "objections": [],
+                   "error": repr(e)}
+        # The decision is fixed above. Only now does anything read prices after the setup date.
+        if rec["verdict"] == "approve":
+            rec.update(simulate(rec["plan"], market, setup["ticker"], setup["date"]))
+        else:
+            rec.update(trade_outcome=None, pnl_pct=None)
+        rec["label"] = int(setup["label"])   # for scoring only; agents never saw it
+        return rec
+
     records = []
-    with open(out_path, "w") as f:
-        for setup in rows.to_dict("records"):
-            try:
-                rec = decide(setup, market, llm, tracer)
-            except Exception as e:     # one bad setup must not stop the run; it is logged as an error
-                rec = {"ticker": setup["ticker"], "date": setup["date"], "split": split,
-                       "rounds": None, "verdict": "error", "plan": None, "objections": [],
-                       "error": repr(e)}
-            # The decision is fixed above. Only now does anything read prices after the setup date.
-            if rec["verdict"] == "approve":
-                rec.update(simulate(rec["plan"], market, setup["ticker"], setup["date"]))
-            else:
-                rec.update(trade_outcome=None, pnl_pct=None)
-            rec["label"] = int(setup["label"])   # for scoring only; agents never saw it
+    with open(out_path, "w") as f, ThreadPoolExecutor(max_workers=workers) as pool:
+        for rec in pool.map(one, rows.to_dict("records")):   # map keeps setup order
             f.write(json.dumps(rec) + "\n")
             f.flush()
             records.append(rec)
@@ -139,6 +148,7 @@ def main():
     parser.add_argument("--split", default="validation", choices=["train", "validation"])
     parser.add_argument("--limit", type=int, help="only the first N setups (smoke run)")
     parser.add_argument("--out", help="JSONL path (default runs/swarm_<split>.jsonl)")
+    parser.add_argument("--workers", type=int, default=1, help="setups decided in parallel")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "claude"],
                         help="deepseek needs DEEPSEEK_API_KEY; claude needs ANTHROPIC_API_KEY")
     args = parser.parse_args()
@@ -149,7 +159,8 @@ def main():
 
     market = load_market()
     tracer = make_tracer(tags=("trading-swarm", "provider:" + args.provider))
-    records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out)
+    records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out,
+                  args.workers)
     tracer.flush()
     summary = summarize(records, market, args.split, cost=tracer.total_cost())
     with open(SUMMARY_PATH, "w") as f:

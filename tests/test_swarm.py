@@ -184,6 +184,13 @@ def test_one_failing_setup_is_logged_as_an_error_and_the_run_continues(tmp_path,
     assert recs[0]["trade_outcome"] is None
 
 
+def test_parallel_run_keeps_setup_order(tmp_path, good_backtest):
+    m = make_market({"AAA": [100.0] * 80}, [("AAA", i, "validation", i % 2) for i in range(30, 50)])
+    recs = swarm.run("validation", m, fake_llm(), Tracer(), out_path=str(tmp_path / "p.jsonl"), workers=8)
+    assert [r["date"] for r in recs] == list(m.setups["date"])
+    assert [json.loads(l)["date"] for l in (tmp_path / "p.jsonl").read_text().splitlines()] == list(m.setups["date"])
+
+
 def test_refuses_the_test_split():
     with pytest.raises(SystemExit):
         swarm.run("test", market(), fake_llm(), Tracer())
