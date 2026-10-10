@@ -38,7 +38,7 @@ def decide(setup, market, llm, tracer):
     ticker, date = setup["ticker"], setup["date"]
     tags = {"ticker": ticker, "date": date}
     features = {k: float(setup[k]) for k in FEATURE_NAMES}
-    with tracer.span("agent", "swarm", **tags):
+    with tracer.span("workflow", "swarm", **tags):
         with tracer.span("tool", "get_prices", agent="researcher", round=0, **tags) as rec:
             recent = get_prices(market, ticker, date, LOOKBACK)
             entry = float(recent["Adj Close"].iloc[-1])
@@ -150,6 +150,7 @@ def main():
     market = load_market()
     tracer = make_tracer(tags=("trading-swarm", "provider:" + args.provider))
     records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out)
+    tracer.flush()
     summary = summarize(records, market, args.split, cost=tracer.total_cost())
     with open(SUMMARY_PATH, "w") as f:
         f.write(summary)

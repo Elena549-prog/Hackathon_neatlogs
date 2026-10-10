@@ -8,7 +8,7 @@ from src.agents import mathematician, naysayer, planner
 from src.features import FEATURE_NAMES
 from src.llm import make_llm
 from src.tracing import Tracer
-from tests.helpers import FakeClient, FakeDeepSeekClient, FakeTracker, PLAN_OUT, fake_llm, make_market
+from tests.helpers import FakeClient, FakeDeepSeekClient, FakeNeatlogs, PLAN_OUT, fake_llm, make_market
 
 FACTS = {"ret_5d": "5-day return is 0.", "vol_20d": "20-day volatility is 0."}
 FEATURES = {k: 0.0 for k in FEATURE_NAMES}
@@ -191,23 +191,39 @@ def test_refuses_the_test_split():
 
 # -------------------------------------------------------------------------------- tracing
 
-def test_spans_carry_tags_and_nest_under_the_swarm_span(good_backtest):
-    tracker = FakeTracker()
-    tracer = Tracer(tracker)
+def test_spans_carry_kinds_tags_and_nest_under_one_workflow_span(good_backtest):
+    nl = FakeNeatlogs()
+    tracer = Tracer(nl.trace)
     m = market()
     swarm.decide(m.setups.iloc[0].to_dict(), m, make_llm(tracer, client=FakeDeepSeekClient()), tracer)
 
-    names = [s.node_name for s in tracker.ended]
-    assert {"researcher", "planner", "naysayer", "get_prices", "backtest", "mathematician", "swarm"} <= set(names)
-    root = next(s for s in tracker.ended if s.node_name == "swarm")
-    for s in tracker.ended:
+    by_name = {s.name: s for s in nl.ended}
+    assert {"researcher", "planner", "naysayer", "get_prices", "backtest", "mathematician", "swarm"} <= set(by_name)
+    root = by_name["swarm"]
+    assert root.kind == "WORKFLOW" and root.parent is None
+    assert by_name["planner"].kind == "AGENT" and by_name["backtest"].kind == "TOOL"
+    for s in nl.ended:
         if s is root:
             continue
-        assert s.parent_span_id == root.span_id
+        assert s.parent is root
         for key in ("agent", "round", "ticker", "date"):
-            assert any(t.startswith(key + ":") for t in s.tags), (s.node_name, key)
+            assert any(t.startswith(key + ":") for t in s.attributes["tag.tags"]), (s.name, key)
+    planner_span = by_name["planner"]
+    assert json.loads(planner_span.attributes["metadata"])["model"] == "deepseek-v4-pro"
+    assert "output.value" in planner_span.attributes
     llm_spans = [s for s in tracer.spans if s["kind"] == "llm"]
     assert all(s["prompt_tokens"] == 1000 and s["cost"] > 0 for s in llm_spans)
+
+
+def test_a_failing_step_marks_its_span_as_an_error():
+    nl = FakeNeatlogs()
+    tracer = Tracer(nl.trace)
+    with pytest.raises(ValueError):
+        with tracer.span("tool", "broken", agent="x"):
+            raise ValueError("boom")
+    span = nl.ended[0]
+    assert span.exceptions and span.status.status_code.name == "ERROR"
+    assert tracer.spans[0]["status"] == "FAILURE"
 
 
 @pytest.mark.parametrize("provider, client", [("deepseek", FakeDeepSeekClient), ("claude", FakeClient)])

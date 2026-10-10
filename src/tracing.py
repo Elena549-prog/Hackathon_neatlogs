@@ -1,58 +1,70 @@
-"""neatlogs tracing for the swarm.
+"""neatlogs tracing for the swarm (neatlogs 1.4, OpenTelemetry / OpenInference).
 
-Every LLM call, tool call, and agent step runs inside Tracer.span(). Spans nest under the
-span that is open when they start, and carry agent/round/ticker/date tags. Spans are
-recorded through neatlogs' tracker by hand, because neatlogs only auto-patches
-client.messages.create and the swarm also uses client.beta.messages.create.
+Workflow, agent, and tool steps run inside Tracer.span(). Each becomes a neatlogs span with an
+OpenInference kind, `tag.tags` (agent/round/ticker/date), and input/output values. Spans nest
+under the span open when they start, so each setup is one trace. LLM calls are recorded by
+neatlogs' own OpenAI/Anthropic instrumentation, nested under the agent span that made them.
 
-Without NEATLOGS_API_KEY, spans are kept in Tracer.spans only and nothing is sent.
+Tracer.spans keeps a local copy of every span, with our token and cost counts, for summaries
+and tests. Without NEATLOGS_API_KEY nothing is sent.
 """
 import contextlib
 import json
 import os
 import time
 
-from neatlogs.core import current_span_id_context
+KINDS = {"workflow": "WORKFLOW", "agent": "AGENT", "llm": "AGENT", "tool": "TOOL"}
 
 
 class Tracer:
-    def __init__(self, tracker=None):
-        self.tracker = tracker
-        self.spans = []     # local copy of every span, for summaries and tests
+    def __init__(self, open_span=None, flush=None):
+        """open_span(name, kind=..., **attributes) is a context manager yielding an OTel span
+        (neatlogs.trace in production). Without it, spans are kept locally only."""
+        self.open_span = open_span
+        self._flush = flush
+        self.spans = []
 
     @contextlib.contextmanager
     def span(self, kind, name, model=None, **tags):
         """Open a span. The yielded dict takes input, output, token counts, and cost."""
         rec = {"kind": kind, "name": name, "model": model, "tags": tags, "input": None,
                "output": None, "prompt_tokens": 0, "completion_tokens": 0, "cost": 0.0}
-        nl = token = None
-        if self.tracker:
-            nl = self.tracker.start_llm_span(model=model, provider="anthropic" if model else "local",
-                                             node_type=kind, node_name=name)
-            nl.tags = list(nl.tags) + ["%s:%s" % kv for kv in tags.items()]
-            token = current_span_id_context.set(nl.span_id)   # children nest under this span
+        attributes = {"tag.tags": ["%s:%s" % kv for kv in tags.items()]}
+        opened = self.open_span(name, kind=KINDS[kind], **attributes) if self.open_span else contextlib.nullcontext()
         start, error = time.time(), None
-        try:
-            yield rec
-        except Exception as e:
-            error = e
-            raise
-        finally:
-            rec["duration"] = time.time() - start
-            rec["status"] = "FAILURE" if error else "SUCCESS"
-            self.spans.append(rec)
-            if nl:
-                current_span_id_context.reset(token)
-                nl.messages = [{"role": "user", "content": _text(rec["input"])}]
-                nl.completion = _text(rec["output"])
-                nl.prompt_tokens = rec["prompt_tokens"]
-                nl.completion_tokens = rec["completion_tokens"]
-                nl.total_tokens = rec["prompt_tokens"] + rec["completion_tokens"]
-                nl.cost = rec["cost"]
-                self.tracker.end_llm_span(nl, success=error is None, error=error)
+        with opened as otel_span:
+            try:
+                yield rec
+            except Exception as e:
+                error = e
+                if otel_span is not None:
+                    from opentelemetry.trace import Status, StatusCode
+                    otel_span.record_exception(e)
+                    otel_span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
+            finally:
+                rec["duration"] = time.time() - start
+                rec["status"] = "FAILURE" if error else "SUCCESS"
+                self.spans.append(rec)
+                if otel_span is not None:
+                    _annotate(otel_span, rec)
 
     def total_cost(self):
         return sum(s["cost"] for s in self.spans)
+
+    def flush(self):
+        if self._flush:
+            self._flush()
+
+
+def _annotate(otel_span, rec):
+    for key in ("input", "output"):
+        if rec[key] is not None:
+            otel_span.set_attribute("%s.value" % key, _text(rec[key]))
+    if rec["model"]:
+        otel_span.set_attribute("metadata", json.dumps({
+            "model": rec["model"], "prompt_tokens": rec["prompt_tokens"],
+            "completion_tokens": rec["completion_tokens"], "cost_usd_upper_bound": rec["cost"]}))
 
 
 def _text(value):
@@ -60,9 +72,12 @@ def _text(value):
 
 
 def make_tracer(tags=("trading-swarm",)):
+    """Call before the OpenAI/Anthropic SDKs are imported, so neatlogs can instrument them."""
     key = os.environ.get("NEATLOGS_API_KEY")
     if not key:
         print("NEATLOGS_API_KEY not set: spans are kept locally only, nothing is sent to neatlogs.")
         return Tracer()
     import neatlogs
-    return Tracer(neatlogs.init(api_key=key, tags=list(tags)))
+    neatlogs.init(api_key=key, workflow_name="trading-swarm", tags=list(tags),
+                  instrumentations=["openai", "anthropic"])
+    return Tracer(neatlogs.trace, neatlogs.flush)

@@ -10,7 +10,6 @@ retried once, then raise LLMError (DeepSeek documents occasional empty replies).
 import json
 import os
 
-from neatlogs.core import release_patching, suppress_patching
 
 MODELS = {
     "deepseek": {"researcher": "deepseek-flash", "planner": "deepseek-v4-pro", "naysayer": "deepseek-v4-pro"},
@@ -96,11 +95,7 @@ def _deepseek_call(client):
         )
         if thinking:
             kwargs["reasoning_effort"] = "high"
-        suppress_patching()     # neatlogs would also auto-log this OpenAI-SDK call; our span already does
-        try:
-            resp = client.chat.completions.create(**kwargs)
-        finally:
-            release_patching()
+        resp = client.chat.completions.create(**kwargs)   # neatlogs' OpenAI instrumentation records this call
         choice = resp.choices[0]
         return choice.message.content, resp.usage.prompt_tokens, resp.usage.completion_tokens, choice.finish_reason
 

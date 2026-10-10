@@ -1,4 +1,5 @@
 """Synthetic markets and fake Claude clients for the swarm tests. No network, no data files."""
+import contextlib
 import json
 from types import SimpleNamespace
 
@@ -93,13 +94,10 @@ class FakeDeepSeekClient:
         self.queued = {k: list(v) for k, v in (queued or {}).items()}
         self.finish_reason = finish_reason
         self.requests = []
-        self.suppressed = []    # was neatlogs auto-patching suppressed during each call?
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **kwargs):
-        from neatlogs.core import is_patching_suppressed
         self.requests.append(kwargs)
-        self.suppressed.append(is_patching_suppressed())
         role = _role(kwargs["messages"][0]["content"], self.answers)
         queue = self.queued.get(role)
         text = queue.pop(0) if queue else json.dumps(self.answers[role])
@@ -108,19 +106,34 @@ class FakeDeepSeekClient:
             usage=SimpleNamespace(prompt_tokens=1000, completion_tokens=100))
 
 
-class FakeTracker:
-    """Records neatlogs spans the way neatlogs.core.LLMTracker would receive them."""
+class FakeNeatlogs:
+    """Stands in for neatlogs.trace: records spans, their attributes, and their parent span."""
 
     def __init__(self):
-        self.started = 0
         self.ended = []
+        self._stack = []
 
-    def start_llm_span(self, model=None, provider=None, framework=None, node_type="llm_call", node_name=None):
-        from neatlogs.core import current_span_id_context
-        self.started += 1
-        return SimpleNamespace(span_id="s%d" % self.started, parent_span_id=current_span_id_context.get(),
-                               tags=["trading-swarm"], node_type=node_type, node_name=node_name, model=model)
+    @contextlib.contextmanager
+    def trace(self, name, kind=None, **attributes):
+        span = FakeSpan(name, kind, attributes, self._stack[-1] if self._stack else None)
+        self._stack.append(span)
+        try:
+            yield span
+        finally:
+            self._stack.pop()
+            self.ended.append(span)
 
-    def end_llm_span(self, span, success=True, error=None):
-        span.success = success
-        self.ended.append(span)
+
+class FakeSpan:
+    def __init__(self, name, kind, attributes, parent):
+        self.name, self.kind, self.attributes, self.parent = name, kind, dict(attributes), parent
+        self.exceptions, self.status = [], None
+
+    def set_attribute(self, key, value):
+        self.attributes[key] = value
+
+    def record_exception(self, e):
+        self.exceptions.append(e)
+
+    def set_status(self, status):
+        self.status = status

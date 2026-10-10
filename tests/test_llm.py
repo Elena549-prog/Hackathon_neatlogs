@@ -2,7 +2,6 @@
 import json
 
 import pytest
-from neatlogs.core import is_patching_suppressed
 
 from src.agents import naysayer, planner, researcher
 from src.llm import LLMError, make_llm, schema_error
@@ -26,13 +25,6 @@ def test_deepseek_request_shape_per_agent():
     assert p["extra_body"] == {"thinking": {"type": "enabled"}} and p["reasoning_effort"] == "high"
     system = p["messages"][0]["content"]
     assert "JSON" in system and json.dumps(planner.SCHEMA) in system   # JSON mode needs both
-
-
-def test_neatlogs_auto_patching_is_suppressed_only_during_the_call():
-    client = FakeDeepSeekClient()
-    call(planner, "planner", client)
-    assert client.suppressed == [True]
-    assert not is_patching_suppressed()
 
 
 def test_empty_reply_is_retried_and_both_attempts_are_billed():
