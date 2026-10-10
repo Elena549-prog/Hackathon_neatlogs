@@ -82,6 +82,8 @@ The validator rejects any plan whose levels differ from these by more than 0.01.
 
 **Conditions.** `conditions` states the thesis as checks on the setup's own feature values, e.g. "20-day return above 3% and 20-day volatility below 2%". Allowed operators: `>`, `<`, `>=`, `<=`. Keys must be feature columns from `data/labels/setups.csv`. The setup being decided must satisfy its own conditions. The backtest uses them to find comparable past setups (section 6).
 
+**1 to 4 conditions, enforced by the validator.** A plan with no conditions is "buy everything": that is the buy-and-hold baseline (`GUIDE.md` step 6), not a thesis, and it would leave the Naysayer LLM as the only filter. The Planner prompt asks for 1–4, but the validator must reject 0 or more than 4 as well.
+
 **Naysayer output** (JSON):
 ```json
 {"verdict": "approve" | "block", "objections": ["..."]}
@@ -106,14 +108,19 @@ Block requires at least one objection. Approve with objections is not allowed.
 - Paper account starts at 100,000 (simulated currency).
 - Risk per trade: 2% of account. Size = risk ÷ (entry − stop).
 - EV = p × (target − entry) − (1 − p) × (entry − stop), with **p = `hit_rate_low`** from the backtest, not the plain hit rate. With the fixed +5% / −3% levels, EV > 0 exactly when p > 3 / 8 = 37.5%.
-- **Hard gate:** the Naysayer must block if `n` < 30 (too little evidence) or EV ≤ 0. The Mathematician reports `n`, `hit_rate`, `hit_rate_low` and EV.
+- **Hard gate:** the Naysayer must block if any of these holds. The Mathematician reports `n`, the eligible train count, `hit_rate`, `hit_rate_low` and EV.
+  - `n` < 30: too little evidence.
+  - `n` > 80% of the eligible train setups: thesis too broad. A condition every setup meets (e.g. volatility below 50%) does not narrow anything and is the same loophole as no conditions.
+  - EV ≤ 0.
 - Why the cautious estimate: the overall train hit rate is 40.5% (1,263 setups), already above the 37.5% break-even. Using the plain rate, almost any plan would show a positive EV and the gate would rarely fire. Step 1–4 baselines also found no reliable signal in the price features (validation AUC 0.46–0.50), so a gate that demands evidence is the honest default. Examples with the 95% Wilson lower bound:
 
   | Matching setups | Hit rate | Lower bound | Gate |
   |---|---|---|---|
   | 40 | 45% | 30.7% | block |
   | 300 | 45% | 39.5% | pass |
-  | 1,263 (all train) | 40.5% | 37.8% | pass, barely |
+  | 1,263 (all train, no real thesis) | 40.5% | 37.8% | block: too broad |
+
+  The last row matters beyond the gate: the validation positive rate is 36.6%, below the 37.5% break-even, so a "buy everything" plan that slipped through would lose money on validation.
 
 - Step 8 (ensemble): once Laya is available, its calibrated probability can replace `hit_rate_low` as p. Decide then; out of scope here.
 - No fees or slippage in this step. State that in the report.
@@ -152,7 +159,8 @@ tests/test_simulator.py
 - `get_prices` returns nothing after `end_date`. Test with a series that has a spike after the date.
 - Plan validator rejects: `direction` = short, `facts_cited` not in researcher output, `stop` ≠ `entry` × 0.97, `target` ≠ `entry` × 1.05, `horizon_days` ≠ 10, `entry` ≠ the setup's Adj Close, `conditions` with an unknown feature or operator, and conditions the setup itself does not satisfy.
 - Backtest: on a hand-built table, `n`, `hit_rate` and `hit_rate_low` match hand values (e.g. 18 of 40 → 45.0%, lower bound 30.7%). Setups dated on or after the decision date are never counted.
-- Gate: `n` = 29 blocks; `hit_rate_low` = 0.374 blocks; `hit_rate_low` = 0.376 with `n` ≥ 30 passes.
+- Gate: `n` = 29 blocks; `hit_rate_low` = 0.374 blocks; `hit_rate_low` = 0.376 with `n` ≥ 30 passes; `n` = 81% of eligible setups blocks as too broad; `n` = 79% does not.
+- Validator: a plan with 0 conditions is rejected; 5 conditions are rejected; 1 and 4 are accepted.
 - Naysayer `approve` with objections is rejected. `block` with no objections is rejected.
 - Round cap: a naysayer that always blocks drops the setup after 2 rounds.
 - Simulator: a stop-first path closes as `loss`. A target-first path closes as `win`. Same-day both hit closes as `loss`.
@@ -181,3 +189,4 @@ tests/test_simulator.py
 5. 2% risk per trade on a 100,000 paper account.
 6. Fixed levels: stop −3%, target +5%, 10-day horizon, matching the label rule (section 5).
 7. EV gate on the cautious hit rate: 95% Wilson lower bound, minimum 30 matching setups (section 7).
+8. 1–4 conditions per plan, enforced in code, and a "too broad" block when conditions match more than 80% of eligible train setups. The 80% is a judgment call, not derived (sections 5 and 7).
