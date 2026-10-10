@@ -136,7 +136,8 @@ def summarize(setups, dropped):
               "## Dropped setups", "",
               "- Before 200 days of history (200-day average not available): %d" % dropped["short_history"],
               "- Neither +5%% nor -3%% hit within 10 days: %d" % dropped["no_label"],
-              "- Date outside all splits (after 2026-09-15): %d" % dropped["no_split"]]
+              "- Date outside all splits (feature-history year before 2024-10-01, or after "
+              "2026-09-15): %d" % dropped["no_split"]]
     return "\n".join(lines) + "\n"
 
 

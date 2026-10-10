@@ -91,7 +91,8 @@ The labels and question wording do not change: label 1 → noul `true`, choice `
 - An optional `eval_data` file gives before/after metrics. Do not point it at test-split data.
 - With only a few hundred or thousand items, the code warns that predictions can collapse to the class prior ("try more epochs, more data"). Our train split will be small (see the note below), so this is worth watching.
 
-## Note for Step 3 (outside Step 1, flagged early)
-
-Price history starts 2024-10-01 and SPEC Step 3 drops setups with fewer than 200 days of history (the 200-day moving average). 200 trading days after 2024-10-01 is around mid-July 2025, so the train split (ends 2025-12-31) keeps only about 115 trading days × 5 tickers ≈ 575 setups before label drops, about 1,150 items. That is in the range where the code warns about collapse. The owner may want to decide on this before Step 3.
 - Default settings in `TrainConfig`: 4 epochs, micro-batch 8, grad-accum 8. SPEC 5b quotes the Kaggle notebook's defaults (micro-batch 2, grad-accum 16), which are separate.
+
+## Note on training-set size (resolved 2026-10-10)
+
+With price history starting 2024-10-01, the 200-day moving average dropped every setup before mid-July 2025, and the train split kept only 455 setups. Price history now starts 2023-10-01 (SPEC change log), so features exist from the first train date. The train split is still small for a language-model fine-tune, so the collapse warning above is still worth watching.

@@ -12,19 +12,22 @@ import sys
 import numpy as np
 import pandas as pd
 
-# Frozen in SPEC section 0. Do not change.
+# SPEC section 0 (updated 2026-10-10, see the change log there). Do not change without the owner.
 TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
-START = "2024-10-01"
+# Starts one year before the first setup date (2024-10-01) so that features needing
+# 200 days of history (the 200-day average) exist from the first train setup on.
+# The extra year is feature history only: no setups are made before 2024-10-01.
+START = "2023-10-01"
 END = "2026-10-01"  # exclusive, so the last day is 2026-09-30
 COLUMNS = ["Open", "High", "Low", "Close", "Adj Close", "Volume"]
 
 PRICES_DIR = os.path.join("data", "prices")
 REPORT_PATH = os.path.join("runs", "price_data_check.md")
 
-# Check thresholds. US markets trade about 252 days a year, so the 2-year window
-# holds about 502 trading days. A small shortfall at the edges is fine.
-MIN_ROWS = 480
-MAX_ROWS = 510
+# Check thresholds. US markets trade about 252 days a year, so the 3-year window
+# holds about 753 trading days. A small shortfall at the edges is fine.
+MIN_ROWS = 730
+MAX_ROWS = 760
 MAX_GAP_TRADING_DAYS = 5
 
 
