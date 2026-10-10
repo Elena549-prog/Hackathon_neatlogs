@@ -66,10 +66,21 @@ Each setup gets at most two rounds. A dropped setup is logged as `dropped`, not 
   "target": 198.98,
   "horizon_days": 10,
   "thesis": "one sentence",
+  "conditions": {"ret_20d": [">", 0.03], "vol_20d": ["<", 0.02]},
   "facts_cited": ["ret_20d", "vol_20d"]
 }
 ```
-Rules: `direction` is `long` only (no shorts in this step). `stop` < `entry` < `target`. `facts_cited` must be a subset of the researcher's output keys.
+Rules: `direction` is `long` only (no shorts in this step). `facts_cited` must be a subset of the researcher's output keys.
+
+**Fixed levels.** The Planner decides only *whether* to trade and *why* (`thesis`, `conditions`). The levels follow the label rule in `docs/SPEC.md` section 0, so every component scores the same bet:
+- `entry` = Adj Close on the setup date
+- `stop` = `entry` × 0.97
+- `target` = `entry` × 1.05
+- `horizon_days` = 10
+
+The validator rejects any plan whose levels differ from these by more than 0.01. Reason: labels, Laya and the train-split backtest all answer "+5% before −3% within 10 days". If the Planner chose other levels, the swarm and Laya would judge different bets and the ensemble (step 8) could not combine them fairly.
+
+**Conditions.** `conditions` states the thesis as checks on the setup's own feature values, e.g. "20-day return above 3% and 20-day volatility below 2%". Allowed operators: `>`, `<`, `>=`, `<=`. Keys must be feature columns from `data/labels/setups.csv`. The setup being decided must satisfy its own conditions. The backtest uses them to find comparable past setups (section 6).
 
 **Naysayer output** (JSON):
 ```json
@@ -83,13 +94,28 @@ Block requires at least one objection. Approve with objections is not allowed.
 ## 6. Tools
 
 - `get_prices(ticker, end_date, lookback_days)`: returns Adj Close and High/Low up to `end_date` only. Must never return data after `end_date`. This is the leakage guard for the agents.
-- `backtest(plan, split="train")`: simulates the plan's thesis on past setups in the train split with the same label rule. Returns hit rate and count. Train split only.
+- `backtest(plan, split="train")`: finds the train-split setups that satisfy `plan.conditions` and returns, under the same label rule:
+  - `n`: number of matching setups,
+  - `hit_rate`: share of them labelled 1,
+  - `hit_rate_low`: the lower end of the 95% Wilson interval for that share.
+
+  Train split only. Matching setups from dates on or after the setup being decided are excluded, so a validation run never sees later data.
 
 ## 7. Position sizing (Mathematician)
 
 - Paper account starts at 100,000 (simulated currency).
 - Risk per trade: 2% of account. Size = risk ÷ (entry − stop).
-- EV = p × (target − entry) − (1 − p) × (entry − stop), where p is the backtest hit rate. If EV ≤ 0, the Mathematician reports it and the Naysayer must block.
+- EV = p × (target − entry) − (1 − p) × (entry − stop), with **p = `hit_rate_low`** from the backtest, not the plain hit rate. With the fixed +5% / −3% levels, EV > 0 exactly when p > 3 / 8 = 37.5%.
+- **Hard gate:** the Naysayer must block if `n` < 30 (too little evidence) or EV ≤ 0. The Mathematician reports `n`, `hit_rate`, `hit_rate_low` and EV.
+- Why the cautious estimate: the overall train hit rate is 40.5% (1,263 setups), already above the 37.5% break-even. Using the plain rate, almost any plan would show a positive EV and the gate would rarely fire. Step 1–4 baselines also found no reliable signal in the price features (validation AUC 0.46–0.50), so a gate that demands evidence is the honest default. Examples with the 95% Wilson lower bound:
+
+  | Matching setups | Hit rate | Lower bound | Gate |
+  |---|---|---|---|
+  | 40 | 45% | 30.7% | block |
+  | 300 | 45% | 39.5% | pass |
+  | 1,263 (all train) | 40.5% | 37.8% | pass, barely |
+
+- Step 8 (ensemble): once Laya is available, its calibrated probability can replace `hit_rate_low` as p. Decide then; out of scope here.
 - No fees or slippage in this step. State that in the report.
 
 ## 8. Paper-trade simulator
@@ -124,7 +150,9 @@ tests/test_simulator.py
 ## 11. Tests (must pass before any run on real setups)
 
 - `get_prices` returns nothing after `end_date`. Test with a series that has a spike after the date.
-- Plan validator rejects: stop ≥ entry, target ≤ entry, `direction` = short, `facts_cited` not in researcher output.
+- Plan validator rejects: `direction` = short, `facts_cited` not in researcher output, `stop` ≠ `entry` × 0.97, `target` ≠ `entry` × 1.05, `horizon_days` ≠ 10, `entry` ≠ the setup's Adj Close, `conditions` with an unknown feature or operator, and conditions the setup itself does not satisfy.
+- Backtest: on a hand-built table, `n`, `hit_rate` and `hit_rate_low` match hand values (e.g. 18 of 40 → 45.0%, lower bound 30.7%). Setups dated on or after the decision date are never counted.
+- Gate: `n` = 29 blocks; `hit_rate_low` = 0.374 blocks; `hit_rate_low` = 0.376 with `n` ≥ 30 passes.
 - Naysayer `approve` with objections is rejected. `block` with no objections is rejected.
 - Round cap: a naysayer that always blocks drops the setup after 2 rounds.
 - Simulator: a stop-first path closes as `loss`. A target-first path closes as `win`. Same-day both hit closes as `loss`.
@@ -151,3 +179,5 @@ tests/test_simulator.py
 3. Long-only.
 4. No fees or slippage in this step.
 5. 2% risk per trade on a 100,000 paper account.
+6. Fixed levels: stop −3%, target +5%, 10-day horizon, matching the label rule (section 5).
+7. EV gate on the cautious hit rate: 95% Wilson lower bound, minimum 30 matching setups (section 7).
