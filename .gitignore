@@ -7,3 +7,4 @@ runs/
 __pycache__/
 .env
 *.jsonl
+.pytest_tmp/
