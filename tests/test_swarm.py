@@ -191,6 +191,24 @@ def test_parallel_run_keeps_setup_order(tmp_path, good_backtest):
     assert [json.loads(l)["date"] for l in (tmp_path / "p.jsonl").read_text().splitlines()] == list(m.setups["date"])
 
 
+def test_resume_redecides_only_errors_and_missing_setups(tmp_path, good_backtest):
+    m = make_market({"AAA": [100.0] * 80}, [("AAA", i, "validation", 1) for i in range(30, 34)])
+    out = tmp_path / "r.jsonl"
+    dates = list(m.setups["date"])
+    kept = {"ticker": "AAA", "date": dates[0], "split": "validation", "rounds": 2, "verdict": "dropped",
+            "plan": None, "objections": ["kept as is"], "trade_outcome": None, "pnl_pct": None, "label": 1}
+    failed = dict(kept, date=dates[1], verdict="error", objections=[], error="429")
+    out.write_text(json.dumps(kept) + "\n" + json.dumps(failed) + "\n")       # setups 3 and 4 missing
+
+    llm = fake_llm()
+    recs = swarm.run("validation", m, llm, Tracer(), out_path=str(out), workers=4, resume=True)
+    assert [c["agent"] for c in llm.calls].count("researcher") == 3          # the error plus two missing
+    assert [r["date"] for r in recs] == dates
+    assert recs[0]["objections"] == ["kept as is"] and recs[1]["verdict"] == "approve"
+    assert [json.loads(l)["date"] for l in out.read_text().splitlines()] == dates
+    assert not (tmp_path / "r.jsonl.tmp").exists()
+
+
 def test_refuses_the_test_split():
     with pytest.raises(SystemExit):
         swarm.run("test", market(), fake_llm(), Tracer())

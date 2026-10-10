@@ -68,11 +68,13 @@ def decide(setup, market, llm, tracer):
             "plan": plan, "objections": objections}
 
 
-def run(split, market, llm, tracer, limit=None, out_path=None, workers=1):
+def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume=False):
     """Decide every setup in `split`, simulate approved trades, write JSONL. Returns the records.
 
     With workers > 1, setups are decided in parallel threads; lines are still written in
-    setup order, each as soon as it and every earlier setup are done.
+    setup order. With resume, setups already in out_path without an error are kept as they
+    are and only the rest are decided. Output goes to a temp file that replaces out_path at
+    the end, so an interrupted run never destroys earlier results.
     """
     if split == "test":
         raise SystemExit("The swarm step does not run on the test split.")
@@ -80,9 +82,19 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1):
     if limit:
         rows = rows.head(limit)
     out_path = out_path or os.path.join("runs", "swarm_%s.jsonl" % split)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+
+    done = {}
+    if resume and os.path.exists(out_path):
+        with open(out_path) as f:
+            for line in f:
+                r = json.loads(line)
+                if r["verdict"] != "error":
+                    done[(r["ticker"], r["date"])] = r
 
     def one(setup):
+        if (setup["ticker"], setup["date"]) in done:
+            return done[(setup["ticker"], setup["date"])]
         try:
             rec = decide(setup, market, llm, tracer)
         except Exception as e:     # one bad setup must not stop the run; it is logged as an error
@@ -98,11 +110,13 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1):
         return rec
 
     records = []
-    with open(out_path, "w") as f, ThreadPoolExecutor(max_workers=workers) as pool:
+    tmp_path = out_path + ".tmp"
+    with open(tmp_path, "w") as f, ThreadPoolExecutor(max_workers=workers) as pool:
         for rec in pool.map(one, rows.to_dict("records")):   # map keeps setup order
             f.write(json.dumps(rec) + "\n")
             f.flush()
             records.append(rec)
+    os.replace(tmp_path, out_path)
     return records
 
 
@@ -149,6 +163,8 @@ def main():
     parser.add_argument("--limit", type=int, help="only the first N setups (smoke run)")
     parser.add_argument("--out", help="JSONL path (default runs/swarm_<split>.jsonl)")
     parser.add_argument("--workers", type=int, default=1, help="setups decided in parallel")
+    parser.add_argument("--resume", action="store_true",
+                        help="keep finished setups from --out and re-decide only errors and missing ones")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "claude"],
                         help="deepseek needs DEEPSEEK_API_KEY; claude needs ANTHROPIC_API_KEY")
     args = parser.parse_args()
@@ -160,7 +176,7 @@ def main():
     market = load_market()
     tracer = make_tracer(tags=("trading-swarm", "provider:" + args.provider))
     records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out,
-                  args.workers)
+                  args.workers, args.resume)
     tracer.flush()
     summary = summarize(records, market, args.split, cost=tracer.total_cost())
     with open(SUMMARY_PATH, "w") as f:
