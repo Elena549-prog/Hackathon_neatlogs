@@ -83,7 +83,8 @@ def split_for(date):
 
 def build_setups(prices_by_ticker):
     """The full labeled table: ticker, date, split, label, features. Also returns drop counts."""
-    rows, dropped = [], {"no_split": 0, "no_label": 0, "short_history": 0}
+    rows, dropped = [], {"no_split": 0, "no_label": 0, "short_history": 0,
+                         "raw_hilo_differs": 0, "raw_hilo_checked": 0}
     for ticker, df in prices_by_ticker.items():
         high, low = adjusted_high_low(df)
         for t_index, date in enumerate(make_setups(df, ticker)["date"]):
@@ -96,6 +97,9 @@ def build_setups(prices_by_ticker):
                 dropped["short_history"] += 1
                 continue
             label = label_setup(df, t_index, high, low)
+            if split in ("train", "validation"):  # how much the High/Low scaling matters
+                dropped["raw_hilo_checked"] += 1
+                dropped["raw_hilo_differs"] += label != label_setup(df, t_index, df["High"], df["Low"])
             if label is None:
                 dropped["no_label"] += 1
                 continue
@@ -113,8 +117,9 @@ def summarize(setups, dropped):
              "dropped if neither.", "",
              "Interpretation to confirm with the owner: SPEC says entry = Adj Close and hit checks use "
              "High/Low. Yahoo's High/Low are unadjusted, so they are scaled by each day's "
-             "Adj Close / Close to match the entry. Using raw High/Low instead changes 54 of 1,190 "
-             "train+validation labels (30 of them MSFT).", "",
+             "Adj Close / Close to match the entry. Using raw High/Low instead would change "
+             "%d of %d train+validation setups (label differs or the setup would be dropped/kept)."
+             % (dropped["raw_hilo_differs"], dropped["raw_hilo_checked"]), "",
              "## Per split", "", "| Split | Setups | Positives | Positive rate | Date range |",
              "|---|---|---|---|---|"]
     for name, _, _ in SPLITS:
@@ -136,7 +141,8 @@ def summarize(setups, dropped):
               "## Dropped setups", "",
               "- Before 200 days of history (200-day average not available): %d" % dropped["short_history"],
               "- Neither +5%% nor -3%% hit within 10 days: %d" % dropped["no_label"],
-              "- Date outside all splits (after 2026-09-15): %d" % dropped["no_split"]]
+              "- Date outside all splits (feature-history year before 2024-10-01, or after "
+              "2026-09-15): %d" % dropped["no_split"]]
     return "\n".join(lines) + "\n"
 
 

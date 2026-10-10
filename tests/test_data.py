@@ -17,7 +17,7 @@ from src.data import (
 )
 
 
-def make_prices(n=500, start="2024-10-01"):
+def make_prices(n=750, start="2023-10-02"):
     """A clean fake price table on consecutive weekdays."""
     dates = pd.bdate_range(start, periods=n, name="Date")
     close = np.linspace(100, 150, n)
