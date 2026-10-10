@@ -1,0 +1,9 @@
+data/
+runs/
+*.pt
+*.safetensors
+*.onnx
+.venv/
+__pycache__/
+.env
+*.jsonl
