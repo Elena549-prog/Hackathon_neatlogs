@@ -79,3 +79,10 @@ def test_labels_match_setups_table(exported):
         qid = next(iter(r["gold"]))
         key = "true" if qid == "hit_target" else "buy"
         assert r["gold"][qid]["probabilities"][key] == float(m["label"])
+
+
+def test_eval_export_refuses_test_split(tmp_path):
+    from src.export_laya import export_eval
+    setups = pd.DataFrame([example_setup().to_dict()])
+    with pytest.raises(ValueError):
+        export_eval(setups, "test", str(tmp_path / "x.jsonl"))
