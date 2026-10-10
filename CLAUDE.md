@@ -3,6 +3,7 @@
 This repo is a hackathon project: a paper-trading agent swarm with a Laya accuracy layer.
 
 ## Where to start
+- `docs/HANDOVER.md` (on branch `step-1-4`): current status, results, decisions and the next step. **Read this first when picking up the work.**
 - `docs/PLAN.md`: the approved plan (goal, phases, fallback).
 - `GUIDE.md`: the 13-step guide for the whole project.
 - `docs/SPEC.md`: the detailed spec for Steps 1–4 (schema check, price data, labels and splits, Laya export and Kaggle fine-tune). **If asked to start work, begin with `docs/SPEC.md`.**
