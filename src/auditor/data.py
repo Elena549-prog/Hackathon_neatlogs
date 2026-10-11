@@ -109,10 +109,12 @@ def _fetch_window(tickers, a, b, query, sleep, on_recovered):
             if timeouts >= 2 and (b - a).days >= 2:
                 mid = a + (b - a) / 2
                 if on_recovered:
-                    on_recovered("DoltHub timeout on window %s..%s" % (a.date(), b.date()),
+                    on_recovered("DoltHub timeout on window %s..%s (twice)" % (a.date(), b.date()),
                                  "halved the window and retried")
                 return (_fetch_window(tickers, a, mid, query, sleep, on_recovered)
                         + _fetch_window(tickers, mid + pd.Timedelta(days=1), b, query, sleep, on_recovered))
+            if on_recovered:
+                on_recovered("DoltHub timeout on window %s..%s" % (a.date(), b.date()), "retried after %d s" % pause)
             sleep(pause)
     raise RuntimeError("DoltHub query kept timing out for %s..%s" % (a.date(), b.date()))
 

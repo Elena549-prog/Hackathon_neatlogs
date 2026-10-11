@@ -105,7 +105,8 @@ def test_dolthub_timeout_halves_window(tmp_path):
     iv = data.fetch_implied_vol(["BRK-B"], tmp_path, query=query, start="2026-06-01", end="2026-06-28",
                                 sleep=slept.append, on_recovered=lambda f, a: recovered.append((f, a)))
     assert set(iv.ticker) == {"BRK-B"} and iv.iv_current.dtype.kind == "f"
-    assert any((b - a).days <= 7 for a, b in seen) and recovered and "halved" in recovered[0][1]
+    assert any((b - a).days <= 7 for a, b in seen) and recovered
+    assert "retried" in recovered[0][1] and any("halved" in action for _, action in recovered)
     assert slept
     assert "'BRK.B'" in data.iv_sql(["BRK-B"], pd.Timestamp("2026-06-01"), pd.Timestamp("2026-06-14"))
 
