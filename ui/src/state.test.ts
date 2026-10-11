@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initialState, reduce } from "./state";
+import { appliedDowngrade, initialState, reduce } from "./state";
 import type { AuditEvent } from "./events";
 
 const base = { ts: "2026-10-11T12:00:00Z", audit_id: "a" };
@@ -101,5 +101,51 @@ describe("reduce: provider of the run", () => {
     expect(s.provider).toBe("fake");
     const real = reduce(initialState, ev(1, { type: "audit_started", agent: null, payload: { idea: "x", trace_id: null, llm_budget: 8, fault: null } }));
     expect(real.provider).toBeNull();
+  });
+});
+
+describe("reduce: follow-up cards (M2)", () => {
+  const req = (seq: number, id: string, reason: string) => ev(seq, { type: "followup_requested", agent: "naysayer", payload: { followup: id, reason } });
+  const res = (seq: number, run: string, extra: object) => {
+    const e = bt(seq, run, []);
+    return { ...e, payload: { ...e.payload, ...extra } } as AuditEvent;
+  };
+
+  it("merges the backtest_result of F* into the requested card by id, keeping order", () => {
+    let s = reduce(initialState, req(1, "F2", "years may disagree"));
+    s = reduce(s, req(2, "F4", "one ticker"));
+    s = reduce(s, res(3, "F4", { title: "Concentration", result: "r4", downgrade: true, cause: "F4 concentration: c" }));
+    s = reduce(s, res(4, "F2", { title: "Per-year stability", result: "r2", downgrade: false, cause: null }));
+    expect(s.followups).toEqual([
+      { id: "F2", reason: "years may disagree", title: "Per-year stability", result: "r2", downgrade: false, cause: null },
+      { id: "F4", reason: "one ticker", title: "Concentration", result: "r4", downgrade: true, cause: "F4 concentration: c" },
+    ]);
+    expect(s.followupsRun).toBe(2);
+  });
+
+  it("an M1 follow-up result without the new fields leaves the card as requested", () => {
+    let s = reduce(initialState, req(1, "F2", "r"));
+    s = reduce(s, bt(2, "F2", []));
+    expect(s.followups).toEqual([{ id: "F2", reason: "r" }]);
+  });
+
+  it("ignores wrongly typed fields and still shows a result that arrives without a request", () => {
+    const s = reduce(initialState, res(1, "F1", { title: 3, result: "skipped: no earnings data", downgrade: "yes", cause: 5 }));
+    expect(s.followups).toEqual([{ id: "F1", reason: "", result: "skipped: no earnings data" }]);
+  });
+
+  it("keeps the backend's skipped flag", () => {
+    const s = reduce(initialState, res(1, "F1", { result: "skipped: no earnings data", downgrade: false, cause: null, skipped: true }));
+    expect(s.followups[0]).toMatchObject({ skipped: true, downgrade: false });
+  });
+
+  it("appliedDowngrade only reports a downgrade listed in the verdict", () => {
+    const met = { id: "F4", reason: "", downgrade: true, cause: "F4 concentration: c" };
+    const verdict = (downgrades: object[]) =>
+      reduce(initialState, ev(1, { type: "verdict", agent: null, payload: { verdict: "inconclusive", reason: "r", headline: {}, downgrades } })).verdict;
+    expect(appliedDowngrade(met, null)).toBeNull();
+    expect(appliedDowngrade(met, verdict([{ cause: "tail risk", from: "promising", to: "inconclusive" }]))).toBeNull();
+    expect(appliedDowngrade(met, verdict([{ cause: "F4 concentration: c", from: "promising", to: "inconclusive" }]))).toMatchObject({ to: "inconclusive" });
+    expect(appliedDowngrade({ ...met, downgrade: false }, verdict([{ cause: "F4 concentration: c" }]))).toBeNull();
   });
 });

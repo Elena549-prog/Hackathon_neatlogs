@@ -96,3 +96,14 @@ def test_inconclusive_tail_risk_downgrade():
 def test_followup_downgrade_applies():
     v = verdict.decide(results(followup_downgrades=[{"cause": "F4: validation mean <= 0 without the top ticker"}]))
     assert v["verdict"] == "inconclusive" and v["downgrades"][0]["cause"].startswith("F4")
+
+
+@pytest.mark.parametrize("over, expected", [
+    ({"base": {"train": s(mean=0.02), "validation": s(n=40, blocks=8, mean=-0.01, ci_low=-0.02)}}, "kill"),
+    ({"base": {"train": s(mean=0.02), "validation": s(n=10, blocks=8)}}, "inconclusive"),
+    ({"base": {"train": s(mean=0.02), "validation": s(n=40, blocks=8, mean=0.01, ci_low=-0.001)}}, "inconclusive"),
+])
+def test_failed_followup_never_changes_kill_or_inconclusive(over, expected):
+    plain = verdict.decide(results(**over))
+    hit = verdict.decide(results(followup_downgrades=[{"cause": "F1 earnings excluded: x"}], **over))
+    assert plain["verdict"] == hit["verdict"] == expected and hit["downgrades"] == []

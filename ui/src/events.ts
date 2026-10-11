@@ -41,6 +41,13 @@ export type BacktestResultEvent = Base<"backtest_result", "mathematician", {
   equity_train: EquityPoint[];
   equity_validation: EquityPoint[];
   histogram: unknown;
+  // Follow-up runs (F1-F4) only, M2. `downgrade` means the follow-up's rule was met; whether it changed the
+  // verdict is only in verdict.downgrades.
+  title?: string;
+  result?: string;
+  downgrade?: boolean;
+  skipped?: boolean;
+  cause?: string | null;
 }>;
 export type CheckResultEvent = Base<"check_result", "naysayer", { check: string; passed: boolean; value: unknown; note: string }>;
 export type FollowupRequestedEvent = Base<"followup_requested", "naysayer", { followup: string; reason: string }>;
@@ -49,7 +56,7 @@ export type VerdictEvent = Base<"verdict", null, {
   verdict: Verdict;
   reason: string;
   headline: { n?: number; mean?: number; ci_low?: number; paired_ci_low?: number };
-  downgrades: { cause?: string; [k: string]: unknown }[];
+  downgrades: { cause?: string; from?: Verdict; to?: Verdict; [k: string]: unknown }[];
 }>;
 export type ReportReadyEvent = Base<"report_ready", "reporter", { path: string; trace_id: string | null; prose_included: boolean }>;
 export type ErrorEvent = Base<"error", Agent | null, { step: string; message: string }>;

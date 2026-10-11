@@ -3,6 +3,7 @@ schemas live here; every call goes through the llm(agent, system, prompt, schema
 import json
 import re
 
+from .followups import MAX_FOLLOWUPS, MENU
 from .plan import EXIT_RANGES, FEATURES, MAX_CONDITIONS, SCHEMA as PLAN_SCHEMA
 from .universe import GROUPS
 
@@ -58,6 +59,22 @@ NAYSAYER_SCHEMA = {"type": "object", "properties": {"critique": {"type": "string
                                                     "doubts": {"type": "array", "items": {"type": "string"}}},
                    "required": ["critique", "doubts"]}
 
+NAYSAYER_FOLLOWUPS_SYSTEM = (
+    "You are the Naysayer of the Strategy Auditor, a paper-trading research tool. The base backtest, baselines and "
+    "coded checks have run on the frozen plan; you cannot change the plan, the verdict or any number. Read the "
+    "summary statistics, state your doubts, and choose up to %d robustness follow-ups from the Follow-up menu below "
+    "that would most test whether a positive result is real. Code runs them on the same plan. Give each a one-sentence "
+    "reason tied to the numbers you were shown. Choose none if nothing applies.\n\nFollow-up menu:\n%s\n\n"
+    "You are given summary statistics only: no tickers and no dates. Do not use outside knowledge of markets or "
+    "specific stocks. No financial advice, no position sizing."
+) % (MAX_FOLLOWUPS, "\n".join("- %s %s: %s. Downgrades a promising result if %s." % (fid, title, what, rule)
+                              for fid, (title, what, rule) in MENU.items()))
+NAYSAYER_FOLLOWUPS_SCHEMA = {"type": "object", "properties": {
+    "doubts": {"type": "array", "items": {"type": "string"}},
+    "followups": {"type": "array", "items": {"type": "object", "properties": {
+        "id": {"type": "string", "enum": list(MENU)}, "reason": {"type": "string"}}, "required": ["id", "reason"]}}},
+    "required": ["doubts", "followups"]}
+
 REPORTER_SYSTEM = (
     "You are the Reporter of the Strategy Auditor. You are given the finished report, written by code. Add 2 to 5 "
     "sentences of plain-language explanation of what was tested and what the numbers mean for a hobby trader. You "
@@ -86,6 +103,8 @@ def naysayer_context(results):
            "stricter": results.get("stricter"), "tail": results.get("tail"),
            "checks": [{"check": c["check"], "passed": c["passed"], "note": c["note"]} for c in results.get("checks") or []],
            "drops": results.get("drops")}
+    if results.get("followups"):
+        ctx["followups"] = [{k: f.get(k) for k in ("id", "title", "reason", "result", "downgrade")} for f in results["followups"]]
     return _mask(ctx)
 
 
@@ -102,8 +121,16 @@ def _mask(value):
     return value
 
 
+def run_naysayer_followups(llm, context):
+    """-> {"doubts", "followups": [{"id", "reason"}]} (Naysayer call 1, after the base results)."""
+    out = llm("naysayer", NAYSAYER_FOLLOWUPS_SYSTEM, json.dumps(context), NAYSAYER_FOLLOWUPS_SCHEMA, step="followups")
+    picks = [f for f in out.get("followups") or [] if isinstance(f, dict)]
+    return {"doubts": [str(d) for d in out.get("doubts", []) or []],
+            "followups": [{"id": str(f.get("id", "")), "reason": str(f.get("reason", ""))} for f in picks]}
+
+
 def run_naysayer(llm, context):
-    """-> {"critique", "doubts"} (the only Naysayer LLM call in M1: the final critique)."""
+    """-> {"critique", "doubts"} (Naysayer call 2: the final critique, after the follow-ups)."""
     out = llm("naysayer", NAYSAYER_SYSTEM, json.dumps(context), NAYSAYER_SCHEMA, step="critique")
     return {"critique": str(out.get("critique", "")), "doubts": [str(d) for d in out.get("doubts", []) or []]}
 

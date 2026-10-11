@@ -44,3 +44,13 @@ def test_synthetic_fixture_validates(tmp_path):
     assert {e["type"] for e in events} >= {"backtest_result", "followup_requested", "recovered",
                                            "verdict", "report_ready", "llm_call"}
     assert (tmp_path / "synthetic-demo" / "report.md").exists()
+    # M2 follow-ups: each F* result comes after its request and carries title, result, downgrade, cause.
+    requested = [(e["seq"], e["payload"]["followup"]) for e in events if e["type"] == "followup_requested"]
+    results = [e for e in events if e["type"] == "backtest_result" and e["payload"]["run"].startswith("F")]
+    assert 2 <= len(requested) <= 3 and [f for _, f in requested] == [e["payload"]["run"] for e in results]
+    assert all(seq < r["seq"] for (seq, _), r in zip(requested, results))
+    assert all({"title", "result", "downgrade", "cause"} <= set(r["payload"]) for r in results)
+    met = [r["payload"]["cause"] for r in results if r["payload"]["downgrade"]]
+    assert met and all(met)
+    verdict = next(e for e in events if e["type"] == "verdict")["payload"]
+    assert {d["cause"] for d in verdict["downgrades"]} <= set(met)
