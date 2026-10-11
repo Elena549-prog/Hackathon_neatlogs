@@ -30,7 +30,7 @@ Re-record any clip with mission control running (`.venv/Scripts/python.exe -m uv
 |---|---|---|
 | neatlogs trace, dips audit | Trace `66f9d2d4745323068e43c84d01c9bad1`: span tree (planner → researcher tools → mathematician → naysayer), LLM spans with tokens and cost ($0.0114 in total) | neatlogs dashboard, project "Zeeshan's project", workflow `trading-swarm`; open the trace, expand the naysayer span. 8–10 s screen recording |
 | neatlogs trace, AMZN decision | Trace `7b8501eaf5cdfa8d7918338e5a2e4cc0` (tag `naysayer-replay`): the live Naysayer v2 call | Same; optional, use if the dips trace is too busy |
-| Entire checkpoint | A checkpoint linked to a commit: the prompt and the code change side by side | **Not ready.** `entire checkpoint list` shows one temporary checkpoint and `push_sessions` is false. Make one real change under Entire, commit, answer `y` to link it (docs/NEXT_STEPS.md section 2) |
+| Entire checkpoint | A checkpoint linked to a commit: the prompt and the code change side by side | Three commits on `main` carry `Entire-Checkpoint` trailers: `92918c8` (M2 follow-ups, `01M4NZCR05WYB8MK3KFWWA8GEH`), `679ce33` (brown theme, `01M4P4DWCS6Q3TCMMPZPK77MWS`), `3dd82ec` (UI readability, `01M4P725EADX0FTG0971SAX4CT`). The session data sits on the local branch `entire/67bdece-e3b0c4` only: `push_sessions` is false (kept off until the neatlogs key is rotated), so nothing is on Entire's side yet. Rotate the key, set `push_sessions` to true, push, then record `3dd82ec`'s checkpoint |
 | cfo.ai model | The per-audit sheet with the cost cell and margin | Build per `docs/CFO_AI.md`; set the cost per audit from the numbers sheet below first |
 | Before/after card | The M1 vs M2 table | Made in the edit from `results/audits/before_after.md` (no capture needed) |
 
@@ -93,7 +93,7 @@ Context the voiceover leaves out, for the write-up and Q&A: the AMZN setup is fr
 
 ## Checklist
 
-- [ ] Entire: one real checkpoint linked to a commit
+- [ ] Entire: push the session data for the three linked commits (`push_sessions` true after the key rotation)
 - [ ] cfo.ai: model built, cost cell set, sheet exported
 - [ ] neatlogs: rotate the old API key (STATUS), then record the trace beat
 - [ ] Record the voiceover against the locked cut
