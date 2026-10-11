@@ -1,0 +1,77 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4P725EADX0FTG0971SAX4CT",
+  "session_id": "9d2ab2d7-68cf-4704-b227-686add0a69a4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-11T19:29:35.8611826Z",
+  "branch": "ui-brown-theme",
+  "checkpoints_count": 6,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "240585b29af0",
+  "checkpoint_transcript_start": 420,
+  "transcript_lines_at_start": 420,
+  "compact_transcript_start": 68,
+  "token_usage": {
+    "input_tokens": 146,
+    "cache_creation_tokens": 190683,
+    "cache_read_tokens": 34184996,
+    "output_tokens": 73667,
+    "api_call_count": 73
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_017S46ywkQNEJqikFs3rvZcf",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "impeccable"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "240585b29af0",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 453,
+        "end": 454,
+        "entry_ids": [
+          "583b8af2-662f-4446-90ba-ab139cd574de"
+        ],
+        "tool_use_id": "toolu_017S46ywkQNEJqikFs3rvZcf"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_017S46ywkQNEJqikFs3rvZcf"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: impeccable",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 15
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
