@@ -11,17 +11,22 @@ GAP_CAP_S = 2.0
 MIN_SPEED, MAX_SPEED = 1.0, 8.0
 
 
-def read_events(path):
-    """Parse the complete lines of an events file. A trailing line without a newline is skipped."""
+def read_event_lines(path):
+    """(raw line, parsed event) for each complete line. A trailing line without a newline is skipped."""
     text = Path(path).read_text(encoding="utf-8")
     if text and not text.endswith("\n"):
         text = text[:text.rfind("\n") + 1]
-    events = []
+    out = []
     for line in text.splitlines():
         line = line.strip()
         if line:
-            events.append(json.loads(line))
-    return events
+            out.append((line, json.loads(line)))
+    return out
+
+
+def read_events(path):
+    """Parse the complete lines of an events file."""
+    return [event for _, event in read_event_lines(path)]
 
 
 def clamp_speed(value):
