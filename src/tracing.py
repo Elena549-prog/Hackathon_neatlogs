@@ -17,12 +17,15 @@ KINDS = {"workflow": "WORKFLOW", "agent": "AGENT", "llm": "AGENT", "tool": "TOOL
 
 
 class Tracer:
-    def __init__(self, open_span=None, flush=None):
+    def __init__(self, open_span=None, flush=None, on_span=None):
         """open_span(name, kind=..., **attributes) is a context manager yielding an OTel span
-        (neatlogs.trace in production). Without it, spans are kept locally only."""
+        (neatlogs.trace in production). Without it, spans are kept locally only.
+        on_span(rec) is called when a span ends (the auditor turns llm spans into events)."""
         self.open_span = open_span
         self._flush = flush
+        self.on_span = on_span
         self.spans = []
+        self.trace_id = None     # hex trace id of the first OTel span seen (the audit's neatlogs trace)
 
     @contextlib.contextmanager
     def span(self, kind, name, model=None, **tags):
@@ -33,6 +36,13 @@ class Tracer:
         opened = self.open_span(name, kind=KINDS[kind], **attributes) if self.open_span else contextlib.nullcontext()
         start, error = time.time(), None
         with opened as otel_span:
+            if otel_span is not None and self.trace_id is None:
+                ctx_fn = getattr(otel_span, "get_span_context", None)
+                if ctx_fn is not None:
+                    try:
+                        self.trace_id = format(int(ctx_fn().trace_id), "032x")
+                    except Exception:
+                        pass
             try:
                 yield rec
             except Exception as e:
@@ -48,6 +58,11 @@ class Tracer:
                 self.spans.append(rec)
                 if otel_span is not None:
                     _annotate(otel_span, rec)
+                if self.on_span is not None:
+                    try:
+                        self.on_span(rec)
+                    except Exception:   # a listener must never mask the span's own outcome
+                        pass
 
     def total_cost(self):
         return sum(s["cost"] for s in self.spans)

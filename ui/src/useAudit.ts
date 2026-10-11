@@ -11,6 +11,13 @@ const MIN_QUERY = 3;
 /** The development fixture labels itself through its idea text (scripts/synthetic_audit.py). */
 export const isSynthetic = (idea: string): boolean => idea.startsWith(SYNTHETIC_PREFIX);
 
+/** Honesty label for the command bar and the stamp: synthetic fixture, fake-LLM run, or none for a real run. */
+export function runLabel(idea: string, provider: string | null): string | null {
+  if (isSynthetic(idea)) return "SYNTHETIC · NOT A REAL AUDIT";
+  if (provider === "fake") return "FAKE LLM · KEYWORD PLANNER, REAL DATA";
+  return null;
+}
+
 /** The recording to play for a typed idea or chip: a real recording wins over the synthetic fixture. */
 export function pickAudit(audits: AuditSummary[], text: string): AuditSummary | null {
   const t = text.trim().toLowerCase();

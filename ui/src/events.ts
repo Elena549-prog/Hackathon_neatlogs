@@ -26,7 +26,7 @@ interface Base<T extends string, A extends Agent | null, P> {
   payload: P;
 }
 
-export type AuditStartedEvent = Base<"audit_started", null, { idea: string; trace_id: string | null; llm_budget: number; fault: string | null }>;
+export type AuditStartedEvent = Base<"audit_started", null, { idea: string; trace_id: string | null; llm_budget: number; fault: string | null; provider?: string }>;
 export type AgentStartedEvent = Base<"agent_started", Agent, { step: string }>;
 export type AgentFinishedEvent = Base<"agent_finished", Agent, { step: string; status: "ok" | "error"; duration_ms: number; summary: unknown }>;
 export type LlmCallEvent = Base<"llm_call", Agent, { model: string; prompt_tokens: number; completion_tokens: number; cost_usd: number; latency_ms: number }>;

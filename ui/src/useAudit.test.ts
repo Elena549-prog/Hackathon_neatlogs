@@ -25,3 +25,13 @@ describe("pickAudit", () => {
     expect(pickAudit([real, synth], "a")).toBeNull();
   });
 });
+
+describe("runLabel", () => {
+  it("names synthetic fixtures and fake-LLM runs, nothing for a real run", async () => {
+    const { runLabel } = await import("./useAudit");
+    expect(runLabel("SYNTHETIC FIXTURE: x", "fake")).toBe("SYNTHETIC · NOT A REAL AUDIT");
+    expect(runLabel("buy dips", "fake")).toBe("FAKE LLM · KEYWORD PLANNER, REAL DATA");
+    expect(runLabel("buy dips", "deepseek")).toBeNull();
+    expect(runLabel("buy dips", null)).toBeNull();
+  });
+});

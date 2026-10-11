@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { UiState } from "../state";
-import { isSynthetic } from "../useAudit";
+import { runLabel } from "../useAudit";
 
 function runDate(ts: string | null): string {
   if (!ts) return "";
@@ -44,9 +44,9 @@ export function CommandBar({ state, mode, chips, onSubmit, controls }: {
           {isReplay ? "REPLAY" : "LIVE"}
           {isReplay && state.startedAt && <span className="font-normal text-muted">· {runDate(state.startedAt)}</span>}
         </span>
-        {isSynthetic(state.idea) && (
+        {runLabel(state.idea, state.provider) && (
           <span className="flex h-7 items-center rounded-full border border-kill/70 px-3 font-mono text-[11px] font-semibold tracking-[0.14em] text-kill" title={state.idea}>
-            SYNTHETIC · NOT A REAL AUDIT
+            {runLabel(state.idea, state.provider)}
           </span>
         )}
         {controls}
