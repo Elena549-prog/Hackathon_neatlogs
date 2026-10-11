@@ -254,22 +254,28 @@ def test_refuses_the_test_split():
 
 # ------------------------------------------------------------------- the one-time test run
 
-@pytest.fixture
-def cli(monkeypatch, tmp_path, good_backtest):
-    """main() in tmp_path on a synthetic test split of four setups. No data files, no network."""
-    m = make_market({"AAA": [100.0] * 80}, [("AAA", i, "test", 1) for i in range(30, 34)])
+def patch_main(monkeypatch, tmp_path, m):
+    """main() runs in tmp_path on market `m` with a fake LLM. No data files, no network."""
     llm = fake_llm()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("src.tools.load_market", lambda: m)
     monkeypatch.setattr("src.llm.make_llm", lambda tracer, provider: llm)
     monkeypatch.setattr("src.tracing.make_tracer", lambda tags: Tracer())
-    return m, llm
+    return llm
+
+
+@pytest.fixture
+def cli(monkeypatch, tmp_path, good_backtest):
+    """main() on a synthetic test split of four setups."""
+    m = make_market({"AAA": [100.0] * 80}, [("AAA", i, "test", 1) for i in range(30, 34)])
+    return m, patch_main(monkeypatch, tmp_path, m)
 
 
 @pytest.mark.parametrize("argv, reason", [
     (["--split", "test"], "--final-test"),
     (["--split", "validation", "--final-test"], "needs --split test"),
     (["--split", "test", "--final-test", "--limit", "2"], "--limit"),
+    (["--split", "test", "--final-test", "--setup", "AAA:2025-02-12"], "--setup"),
 ])
 def test_cli_refuses_misuse_of_the_test_split(cli, argv, reason):
     with pytest.raises(SystemExit, match=reason):
@@ -315,6 +321,22 @@ def test_final_test_resume_decides_only_errors_and_missing_setups(cli):
     assert [r["date"] for r in recs] == dates
     assert recs[0]["objections"] == ["kept as is"] and recs[2]["objections"] == ["from the tmp"]
     assert recs[1]["verdict"] == "approve" and recs[3]["verdict"] == "approve"
+
+
+def test_setup_flag_decides_and_paper_trades_only_that_setup(monkeypatch, tmp_path, good_backtest, capsys):
+    m = make_market({"AAA": [100.0] * 80, "BBB": [100.0] * 80},
+                    [("AAA", 30, "validation", 1), ("BBB", 30, "validation", 0)])
+    llm = patch_main(monkeypatch, tmp_path, m)
+    date = m.setups["date"][1]
+    swarm.main(["--setup", "BBB:" + date])
+    recs = [json.loads(l) for l in open(os.path.join("runs", "swarm_validation_BBB_%s.jsonl" % date))]
+    assert [(r["ticker"], r["verdict"], r["trade_outcome"]) for r in recs] == [("BBB", "approve", "expired")]
+    assert [c["agent"] for c in llm.calls].count("researcher") == 1
+    assert '"trade_outcome": "expired"' in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="no setup BBB 1999-01-01"):
+        swarm.main(["--setup", "BBB:1999-01-01"])
+    with pytest.raises(SystemExit):
+        swarm.main(["--setup", "BBB"])
 
 
 # -------------------------------------------------------------------------------- tracing
