@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_012zku74kvimcN5s43ifaNkn",
+  "agent_id": "acb3fe26e32539364",
+  "subagent_type": "general-purpose",
+  "task_description": "Swarm --final-test flag",
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 112625,
+    "cache_read_tokens": 1784977,
+    "output_tokens": 364,
+    "api_call_count": 20
+  },
+  "started_at": "2026-10-11T22:18:51.4958035+05:30",
+  "completed_at": "2026-10-11T22:24:36.5004643+05:30"
+}

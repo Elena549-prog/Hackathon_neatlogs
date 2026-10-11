@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01GyuvDycmuo68FotsyKGLRh",
+  "agent_id": "a9d44053ec81c2cd8",
+  "subagent_type": "general-purpose",
+  "task_description": "cfo.ai workbook per-audit rework",
+  "token_usage": {
+    "input_tokens": 82,
+    "cache_creation_tokens": 176874,
+    "cache_read_tokens": 4903573,
+    "output_tokens": 24562,
+    "api_call_count": 41
+  },
+  "started_at": "2026-10-11T22:18:51.5520548+05:30",
+  "completed_at": "2026-10-11T22:32:49.2297337+05:30"
+}
