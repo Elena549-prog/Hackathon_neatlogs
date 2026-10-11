@@ -8,6 +8,12 @@
       "port": 8000
     },
     {
+      "name": "api-win",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "src.auditor.server:app", "--port", "8000"],
+      "port": 8000
+    },
+    {
       "name": "ui",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "ui", "run", "dev", "--", "--port", "5173", "--strictPort"],
