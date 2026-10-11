@@ -12,7 +12,7 @@ This repo is a hackathon project: the Strategy Auditor, an agent team that tests
 
 ## Ground rules
 - Paper trading and historical replay only. No live trading, no real money, no personalized financial advice.
-- Follow `docs/SPEC.md` exactly. Frozen values in its section 0 do not change.
+- For the trading swarm's data and labels (steps 1–4), follow `docs/SPEC.md` exactly; frozen values in its section 0 do not change. The Strategy Auditor follows `docs/AUDITOR_SPEC.md`, whose section 3 overrides SPEC section 0 for the auditor.
 - Never look at test-split labels or results.
 - Never commit secrets (Kaggle tokens, API keys, `.env`). Use environment variables.
 - Commit after each step. Work on a branch, not `main`.

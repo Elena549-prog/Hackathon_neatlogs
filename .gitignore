@@ -8,4 +8,4 @@ __pycache__/
 .env*
 *.jsonl
 .pytest_tmp/
-!results/*.jsonl
+!results/**/*.jsonl
