@@ -225,3 +225,55 @@ def test_leakage_error_is_audit_error(world, tmp_path, monkeypatch):
     ev = events_of(tmp_path)
     assert ev[-1]["type"] == "error" and "leak" in ev[-1]["payload"]["message"].lower()
     assert not any(e["type"] == "verdict" for e in ev)
+
+
+def test_nan_never_reaches_events_or_report(world, tmp_path):
+    def llm(agent, system, prompt, schema, **tags):
+        if agent == "planner":
+            return {"refuse": {"is_refused": False, "reason": ""}, "family": "stock_long", "universe_group": "mega_cap",
+                    "conditions": [{"feature": "ret_5d", "op": "<", "value": -0.9}],
+                    "exit": {"target_pct": 0.05, "stop_pct": 0.03, "horizon_days": 10}, "hypothesis": "h",
+                    "assumptions": [], "not_tested": [], "core_trigger_tested": True}
+        return {"critique": "c", "doubts": [], "prose": "p"}
+
+    out = go(world, tmp_path, llm=llm)
+    text = (tmp_path / "audits" / "a1" / "events.jsonl").read_text()
+    assert "NaN" not in text and "Infinity" not in text
+    assert out["verdict"]["verdict"] == "inconclusive" and out["verdict"]["headline"]["paired_ci_low"] is None
+    assert "n/a" in Path(out["report_path"]).read_text()
+
+
+def test_existing_id_without_resume_is_refused(world, tmp_path):
+    go(world, tmp_path)
+    before = (tmp_path / "audits" / "a1" / "events.jsonl").read_text()
+    with pytest.raises(runmod.AuditError):
+        go(world, tmp_path)
+    assert (tmp_path / "audits" / "a1" / "events.jsonl").read_text() == before
+    assert len((tmp_path / "audits" / "registry.jsonl").read_text().splitlines()) == 1
+
+
+def test_spans_and_trace_id(world, tmp_path):
+    from tests.helpers import FakeNeatlogs
+
+    class WithContext(FakeNeatlogs):
+        def trace(self, name, kind=None, **attributes):
+            import contextlib
+
+            @contextlib.contextmanager
+            def cm():
+                with super(WithContext, self).trace(name, kind=kind, **attributes) as span:
+                    span.get_span_context = lambda: type("C", (), {"trace_id": 0xABC})()
+                    yield span
+            return cm()
+
+    fake = WithContext()
+    tracer = Tracer(open_span=fake.trace)
+    go(world, tmp_path, tracer=tracer)
+    kinds = {s["kind"] for s in tracer.spans}
+    assert {"workflow", "agent", "tool", "llm"} <= kinds
+    assert tracer.trace_id == format(0xABC, "032x")
+    ev = events_of(tmp_path)
+    assert ev[0]["payload"]["trace_id"] == tracer.trace_id
+    assert next(e for e in ev if e["type"] == "report_ready")["payload"]["trace_id"] == tracer.trace_id
+    workflow = next(s for s in tracer.spans if s["kind"] == "workflow")
+    assert workflow["tags"]["audit_id"] == "a1"

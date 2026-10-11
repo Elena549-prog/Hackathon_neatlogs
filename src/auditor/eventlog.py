@@ -32,7 +32,7 @@ class EventLog:
         problems = validate_event(event)
         if problems:
             raise ValueError("invalid %s event: %s" % (type_, "; ".join(problems)))
-        line = json.dumps(event, default=_json_default)
+        line = json.dumps(event, default=_json_default, allow_nan=False)
         with self.path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
             f.flush()

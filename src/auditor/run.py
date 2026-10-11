@@ -97,8 +97,18 @@ def _json_default(v):
 
 
 def _clean(obj):
-    """JSON round-trip so state and events hold plain Python values only."""
-    return json.loads(json.dumps(obj, default=_json_default))
+    """JSON round-trip so state and events hold plain Python values only; NaN and inf become null."""
+    return _no_nan(json.loads(json.dumps(obj, default=_json_default)))
+
+
+def _no_nan(v):
+    if isinstance(v, float) and not np.isfinite(v):
+        return None
+    if isinstance(v, dict):
+        return {k: _no_nan(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_no_nan(x) for x in v]
+    return v
 
 
 class Audit:
@@ -113,6 +123,8 @@ class Audit:
             self.state = State.load(state_path)
             self.log = EventLog.resume(self.dir / "events.jsonl", audit_id)
         else:
+            if state_path.exists() or (self.dir / "events.jsonl").exists():
+                raise AuditError("audit %r already exists: use --resume %s or a new --id" % (audit_id, audit_id))
             self.state = State.new(state_path, audit_id, idea)
             self.log = EventLog(self.dir / "events.jsonl", audit_id)
         self.idea = self.state.data["idea"]
@@ -159,19 +171,28 @@ class Audit:
         class _Ctx:
             def __enter__(self_):
                 self_.t0, self_.summary = time.time(), None
+                self_.span = audit.tracer.span("agent", name, agent=name, step=step, audit_id=audit.audit_id)
+                self_.rec = self_.span.__enter__()
                 audit.log.emit("agent_started", name, {"step": step})
                 return self_
 
             def __exit__(self_, exc_type, exc, tb):
+                summary = _clean(self_.summary) if self_.summary is not None else None
+                self_.rec["output"] = summary
                 audit.log.emit("agent_finished", name, {"step": step, "status": "error" if exc else "ok",
                                                         "duration_ms": int(1000 * (time.time() - self_.t0)),
-                                                        "summary": _clean(self_.summary) if self_.summary is not None else None})
+                                                        "summary": summary})
+                self_.span.__exit__(exc_type, exc, tb)
                 return False
 
         return _Ctx()
 
     # ------------------------------------------------------------------------------------------- steps
     def run(self):
+        with self.tracer.span("workflow", "audit", audit_id=self.audit_id, provider=self.provider):
+            return self._run()
+
+    def _run(self):
         if "started" not in self.state.data:
             self.log.emit("audit_started", None, {"idea": self.idea, "trace_id": getattr(self.tracer, "trace_id", None),
                                                   "llm_budget": LLM_BUDGET, "fault": self.fault, "provider": self.provider})
@@ -231,12 +252,15 @@ class Audit:
     def _tool(self, name, args, fn):
         self.log.emit("tool_called", "researcher", {"tool": name, "args": args})
         t0 = time.time()
-        try:
-            out = fn()
-        except Exception as e:
-            self.log.emit("tool_result", "researcher", {"tool": name, "ok": False, "duration_ms": int(1000 * (time.time() - t0)),
-                                                       "summary": "%s: %s" % (type(e).__name__, e)})
-            raise
+        with self.tracer.span("tool", name, agent="researcher", step="data", audit_id=self.audit_id) as rec:
+            rec["input"] = args
+            try:
+                out = fn()
+            except Exception as e:
+                self.log.emit("tool_result", "researcher", {"tool": name, "ok": False, "duration_ms": int(1000 * (time.time() - t0)),
+                                                           "summary": "%s: %s" % (type(e).__name__, e)})
+                raise
+            rec["output"] = out[1]
         self.log.emit("tool_result", "researcher", {"tool": name, "ok": True, "duration_ms": int(1000 * (time.time() - t0)),
                                                    "summary": out[1]})
         return out[0]
@@ -410,7 +434,11 @@ class Audit:
                "small_group_note": ("%s has %d tickers: usually inconclusive for lack of trades" % (group, len(GROUPS[group]))
                                     if group in SMALL_GROUPS else None),
                "earnings_caveat": any(f.startswith("earnings") or f == "days_since_earnings" for f in (plan.get("conditions") or {})),
-               "fake_llm": self.provider == "fake", "budget_hit": bool(cr.get("budget_hit"))}
+               "fake_llm": self.provider == "fake", "budget_hit": bool(cr.get("budget_hit")),
+               "fault_note": ("Fault requested: %s, but no DoltHub fetch happens for %s, so nothing was injected."
+                              % (self.fault, plan.get("family"))
+                              if self.fault == "dolthub_timeout" and not str(plan.get("family", "")).startswith("straddle")
+                              and not self.state.data["recoveries"] else None)}
         with self.agent("reporter", "report") as a:
             prose = None
             if not plan.get("refused"):
@@ -426,7 +454,7 @@ class Audit:
             path.write_text(report_mod.render(ctx), encoding="utf-8")
             report_mod.append_registry(self.root / "registry.jsonl", {
                 "date": _now()[:10], "audit_id": self.audit_id, "idea": self.idea, "family": plan.get("family"),
-                "universe_group": group, "plan_hash": plan_r["hash"], "verdict": v["verdict"]})
+                "universe_group": group, "plan_hash": plan_r["hash"], "verdict": v["verdict"], "provider": self.provider})
             self.log.emit("report_ready", "reporter", {"path": str(path), "trace_id": getattr(self.tracer, "trace_id", None),
                                                       "prose_included": prose is not None})
             a.summary = {"prose_included": prose is not None}

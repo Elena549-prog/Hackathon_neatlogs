@@ -51,6 +51,8 @@ def render(ctx):
         lines += ["", "**FAKE LLM run (development only): the plan and critique were produced by keyword rules, not a model.**"]
     if ctx.get("budget_hit"):
         lines += ["", "The LLM call cap (7 calls for the Planner and Naysayer) was hit; the verdict rests on the evidence gathered so far."]
+    if ctx.get("fault_note"):
+        lines += ["", ctx["fault_note"]]
     h = v.get("headline") or {}
     if h:
         lines += ["", "Headline: validation n = %s, mean per trade %s, lower bound %s, paired lower bound vs baseline %s."
@@ -155,10 +157,20 @@ def append_registry(path, line):
 
 
 def registry_count(path):
+    """Finished audits that used the shared validation window; fake-LLM development runs do not count."""
     path = Path(path)
     if not path.is_file():
         return 0
-    return sum(1 for l in path.read_text(encoding="utf-8").splitlines() if l.strip())
+    n = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            if json.loads(line).get("provider") != "fake":
+                n += 1
+        except ValueError:
+            continue
+    return n
 
 
 __all__ = ["render", "prose_ok", "append_registry", "registry_count", "canonical"]

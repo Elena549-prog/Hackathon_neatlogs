@@ -68,3 +68,11 @@ def test_registry_append_and_count(tmp_path):
     report.append_registry(p, {"date": "2026-10-11", "idea": "y", "family": "stock_long", "universe_group": "tech",
                                "plan_hash": "h2", "verdict": "inconclusive"})
     assert report.registry_count(p) == 2 and json.loads(p.read_text().splitlines()[1])["idea"] == "y"
+
+
+def test_registry_count_excludes_fake_runs(tmp_path):
+    p = tmp_path / "registry.jsonl"
+    report.append_registry(p, {"date": "d", "idea": "x", "family": "stock_long", "universe_group": "all_50", "plan_hash": "h", "verdict": "kill", "provider": "fake"})
+    report.append_registry(p, {"date": "d", "idea": "y", "family": "stock_long", "universe_group": "all_50", "plan_hash": "h", "verdict": "kill", "provider": "deepseek"})
+    report.append_registry(p, {"date": "d", "idea": "z", "family": "stock_long", "universe_group": "all_50", "plan_hash": "h", "verdict": "kill"})
+    assert report.registry_count(p) == 2

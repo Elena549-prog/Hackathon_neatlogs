@@ -93,48 +93,100 @@ def _is_timeout(e):
     return isinstance(e, TimeoutError) or "timed out" in str(e).lower() or "timeout" in str(e).lower()
 
 
-def _fetch_window(tickers, a, b, query, sleep, on_recovered):
-    """Rows for one date window: retries with backoff; after two timeouts the window is halved."""
-    timeouts = 0
-    for attempt, pause in enumerate(RETRY_SLEEPS):
+def _row_limit(e):
+    return isinstance(e, RuntimeError) and "row limit" in str(e)
+
+
+def _fetch_window(tickers, a, b, query, sleep, on_recovered, retries=4):
+    """Rows for one date window. Any error but the row limit is retried with backoff (2, 4, 6, 8 s);
+    after two timeouts the window is halved. Every retry is reported through on_recovered."""
+    timeouts, last = 0, None
+    for attempt in range(retries + 1):
         try:
             rows = query(iv_sql(tickers, a, b))
             if len(rows) >= ROW_LIMIT:
                 raise RuntimeError("row limit hit for %s..%s" % (a.date(), b.date()))
             return rows
         except Exception as e:
-            if not _is_timeout(e):
+            if _row_limit(e):
                 raise
-            timeouts += 1
+            last = e
+            timeout = _is_timeout(e)
+            timeouts += int(timeout)
             if timeouts >= 2 and (b - a).days >= 2:
                 mid = a + (b - a) / 2
                 if on_recovered:
-                    on_recovered("DoltHub timeout on window %s..%s (twice)" % (a.date(), b.date()),
+                    on_recovered("DoltHub timeout on window %s..%s (twice): %s" % (a.date(), b.date(), e),
                                  "halved the window and retried")
-                return (_fetch_window(tickers, a, mid, query, sleep, on_recovered)
-                        + _fetch_window(tickers, mid + pd.Timedelta(days=1), b, query, sleep, on_recovered))
+                return (_fetch_window(tickers, a, mid, query, sleep, on_recovered, retries)
+                        + _fetch_window(tickers, mid + pd.Timedelta(days=1), b, query, sleep, on_recovered, retries))
+            if attempt == retries:
+                break
+            pause = RETRY_SLEEPS[min(attempt, len(RETRY_SLEEPS) - 1)]
             if on_recovered:
-                on_recovered("DoltHub timeout on window %s..%s" % (a.date(), b.date()), "retried after %d s" % pause)
+                on_recovered("DoltHub %s on window %s..%s: %s" % ("timeout" if timeout else "error", a.date(), b.date(), e),
+                             "retried after %d s" % pause)
             sleep(pause)
-    raise RuntimeError("DoltHub query kept timing out for %s..%s" % (a.date(), b.date()))
+    raise RuntimeError("DoltHub query failed for window %s..%s after %d attempts: %s" % (a.date(), b.date(), retries + 1, last))
+
+
+def _windows(start, end, window_days):
+    out, a, end_ts = [], pd.Timestamp(start), pd.Timestamp(end)
+    while a <= end_ts:
+        b = min(a + pd.Timedelta(days=window_days - 1), end_ts)
+        out.append((a, b))
+        a = b + pd.Timedelta(days=1)
+    return out
 
 
 def fetch_implied_vol(tickers, cache_dir, query=None, window_days=14, sleep=time.sleep, on_recovered=None,
-                      start=IV_START, end=IV_END):
-    """-> DataFrame(date, ticker, iv_current, hv_current) for the tickers, cached as cache_dir/iv.csv."""
+                      start=IV_START, end=IV_END, retries=4, workers=4):
+    """-> DataFrame(date, ticker, iv_current, hv_current), cached as cache_dir/iv.csv.
+
+    Windows are fetched with `workers` threads; each finished window is appended to iv.partial.jsonl at once, so
+    an interrupted fetch resumes from the windows it already has instead of starting over."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
     cache_dir = Path(cache_dir)
-    cache = cache_dir / "iv.csv"
+    cache, partial = cache_dir / "iv.csv", cache_dir / "iv.partial.jsonl"
+    tickers = list(tickers)
     if cache.is_file():
         iv = pd.read_csv(cache, parse_dates=["date"])
         if set(tickers) <= set(iv.ticker):
             return iv[iv.ticker.isin(tickers)].reset_index(drop=True)
     query = query or _http_query
-    rows = []
-    a, end_ts = pd.Timestamp(start), pd.Timestamp(end)
-    while a <= end_ts:
-        b = min(a + pd.Timedelta(days=window_days - 1), end_ts)
-        rows += _fetch_window(list(tickers), a, b, query, sleep, on_recovered)
-        a = b + pd.Timedelta(days=1)
+    key = ",".join(sorted(tickers))
+    done = {}
+    if partial.is_file():
+        for line in partial.read_text(encoding="utf-8").splitlines():
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if rec.get("key") == key:
+                done[(rec["start"], rec["end"])] = rec["rows"]
+    todo = [(a, b) for a, b in _windows(start, end, window_days) if (a.date().isoformat(), b.date().isoformat()) not in done]
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    lock = threading.Lock()
+
+    def work(window):
+        a, b = window
+        rows = _fetch_window(tickers, a, b, query, sleep, on_recovered, retries)
+        with lock:
+            with partial.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"key": key, "start": a.date().isoformat(), "end": b.date().isoformat(), "rows": rows}) + "\n")
+        return rows
+
+    fetched = []
+    if workers > 1 and len(todo) > 1:
+        with ThreadPoolExecutor(workers) as pool:
+            for rows in pool.map(work, todo):
+                fetched += rows
+    else:
+        for w in todo:
+            fetched += work(w)
+    rows = [r for rs in done.values() for r in rs] + fetched
     iv = pd.DataFrame(rows, columns=["date", "act_symbol", "iv_current", "hv_current"])
     iv["ticker"] = iv.pop("act_symbol").astype(str).str.replace(".", "-", regex=False)
     iv["date"] = pd.to_datetime(iv["date"])
@@ -144,8 +196,9 @@ def fetch_implied_vol(tickers, cache_dir, query=None, window_days=14, sleep=time
     if cache.is_file():
         old = pd.read_csv(cache, parse_dates=["date"])
         iv = pd.concat([old[~old.ticker.isin(iv.ticker)], iv]).sort_values(["ticker", "date"]).reset_index(drop=True)
-    cache_dir.mkdir(parents=True, exist_ok=True)
     iv.to_csv(cache, index=False)
+    if partial.is_file():
+        partial.unlink()
     return iv[iv.ticker.isin(tickers)].reset_index(drop=True)
 
 

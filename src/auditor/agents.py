@@ -86,7 +86,20 @@ def naysayer_context(results):
            "stricter": results.get("stricter"), "tail": results.get("tail"),
            "checks": [{"check": c["check"], "passed": c["passed"], "note": c["note"]} for c in results.get("checks") or []],
            "drops": results.get("drops")}
-    return json.loads(_DATE.sub("[date]", json.dumps(ctx, default=str)))
+    return _mask(ctx)
+
+
+def _mask(value):
+    """Replace dates/years inside string values only; numbers and structure are untouched."""
+    if isinstance(value, str):
+        return _DATE.sub("[date]", value)
+    if isinstance(value, dict):
+        return {k: _mask(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_mask(v) for v in value]
+    if hasattr(value, "item"):
+        return value.item()
+    return value
 
 
 def run_naysayer(llm, context):

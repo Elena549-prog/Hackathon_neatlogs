@@ -67,3 +67,12 @@ def test_naysayer_context_has_no_tickers_or_dates():
     text = json.dumps(agents.naysayer_context(results))
     assert not re.search(r"\b(19|20)\d\d\b", text)
     assert not any(re.search(r"\b%s\b" % re.escape(t), text) for t in universe.ALL)
+
+
+def test_naysayer_context_masks_dates_in_strings_only():
+    results = {"what_tested": "x", "base": {"train": {"n": 2015, "mean": 0.2015}, "validation": {"n": 1999}},
+               "baseline": {}, "stricter": None, "tail": {}, "drops": {"train": {"exit_after_cutoff": 2020}},
+               "checks": [{"check": "leakage", "passed": True, "note": "no date after 2026-06-30"}]}
+    ctx = agents.naysayer_context(results)
+    assert ctx["base"]["train"] == {"n": 2015, "mean": 0.2015} and ctx["drops"]["train"]["exit_after_cutoff"] == 2020
+    assert ctx["checks"][0]["note"] == "no date after [date]"

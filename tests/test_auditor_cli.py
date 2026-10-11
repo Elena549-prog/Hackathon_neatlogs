@@ -54,3 +54,18 @@ def test_resume_flag(tmp_path, monkeypatch):
 def test_fault_flag_is_validated(tmp_path):
     with pytest.raises(SystemExit):
         cli.main(["--provider", "fake", "--fault", "nope", "idea"])
+
+
+def test_fault_dolthub_timeout_fires_on_warm_cache(tmp_path, monkeypatch):
+    import pandas as pd
+    (tmp_path / "iv.csv").write_text("date,ticker,iv_current,hv_current\n2026-06-01,AAPL,0.3,0.2\n")
+    monkeypatch.setattr(cli, "_http_query", lambda sql: [{"date": "2026-06-29", "act_symbol": "AAPL", "iv_current": "0.3", "hv_current": "0.2"}])
+    monkeypatch.setattr(cli.time, "sleep", lambda s: None)
+    recovered = []
+    iv = cli.make_fetchers("dolthub_timeout")["iv"](["AAPL"], tmp_path, on_recovered=lambda f, a: recovered.append((f, a)), fault_first_timeout=True)
+    assert recovered and "injected" in recovered[0][0].lower() and len(iv) == 1
+
+
+def test_fake_provider_refuses_llm_empty_fault(tmp_path, capsys):
+    rc = cli.main(["--provider", "fake", "--fault", "llm_empty", "--root", str(tmp_path / "audits"), "idea"])
+    assert rc == 2 and "llm_empty" in capsys.readouterr().out

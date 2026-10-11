@@ -14,10 +14,13 @@ import json
 import os
 import secrets
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
-from .data import fetch_earnings, fetch_implied_vol, fetch_prices, _http_query
+import pandas as pd
+
+from .data import IV_END, _fetch_window, _http_query, fetch_earnings, fetch_implied_vol, fetch_prices
 from .fake_llm import EmptyFirstReply, make_fake_llm
 from .run import run_audit
 
@@ -45,18 +48,21 @@ def deepseek_balance(get=None):
 
 
 def make_fetchers(fault):
-    """The real data tools; `--fault dolthub_timeout` makes the first DoltHub query raise a timeout."""
+    """The real data tools. `--fault dolthub_timeout` probes one DoltHub window with a query that times out once,
+    so the retry (and its recovered event) is real even when the implied-vol cache is already warm."""
     def iv(tickers, cache_dir, on_recovered=None, fault_first_timeout=False, **kw):
-        query = None
         if fault_first_timeout:
             state = {"fired": False}
 
-            def query(sql):
+            def probe(sql):
                 if not state["fired"]:
                     state["fired"] = True
                     raise TimeoutError("injected DoltHub timeout")
                 return _http_query(sql)
-        return fetch_implied_vol(tickers, cache_dir, query=query, on_recovered=on_recovered)
+
+            b = pd.Timestamp(IV_END)
+            _fetch_window(list(tickers), b - pd.Timedelta(days=13), b, probe, time.sleep, on_recovered)
+        return fetch_implied_vol(tickers, cache_dir, on_recovered=on_recovered)
 
     return {"prices": fetch_prices, "iv": iv, "earnings": fetch_earnings}
 
@@ -85,6 +91,11 @@ def main(argv=None):
     except ImportError:
         pass
 
+    if args.fault == "llm_empty" and args.provider != "deepseek":
+        print("--fault llm_empty is only wired for the deepseek provider (it blanks the first real reply); "
+              "nothing would be injected with --provider %s." % args.provider)
+        return 2
+
     if args.provider == "deepseek" and not args.no_balance_check:
         balance = deepseek_balance()
         if balance is None:
@@ -103,9 +114,6 @@ def main(argv=None):
         from src.llm import make_llm
         client = None
         if args.fault == "llm_empty":
-            if args.provider != "deepseek":
-                print("--fault llm_empty is only wired for the deepseek provider")
-                return 2
             from openai import OpenAI
             client = EmptyFirstReply(OpenAI(api_key=os.environ["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com"))
         llm = make_llm(tracer, args.provider, client)

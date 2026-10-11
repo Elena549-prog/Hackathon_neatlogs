@@ -131,3 +131,29 @@ def test_coverage_summary():
     cov = data.coverage({"AAA": df}, ["BBB"], None, {"AAA": [pd.Timestamp("2025-01-15")], "CCC": []})
     assert cov["skipped"] == ["BBB"] and cov["tickers_without_earnings"] == ["CCC"]
     assert cov["rows_per_ticker_year"]["AAA"]["2024"] > 200 and cov["earnings_first_date"]["AAA"] == "2025-01-15"
+
+
+def test_iv_fetch_resumes_from_partial_cache_and_retries_errors(tmp_path):
+    import urllib.error
+    calls = {"n": 0, "windows": []}
+
+    def flaky(sql):
+        a, b = data.window_of(sql)
+        calls["n"] += 1
+        calls["windows"].append(a)
+        if calls["n"] == 2:
+            raise urllib.error.URLError("connection reset")        # transient: retried
+        if calls["n"] in (4, 5):
+            raise RuntimeError("DoltHub: internal error")           # persists through the one retry
+        return [{"date": a.date().isoformat(), "act_symbol": "AAPL", "iv_current": "0.3", "hv_current": "0.2"}]
+
+    with pytest.raises(RuntimeError):
+        data.fetch_implied_vol(["AAPL"], tmp_path, query=flaky, start="2026-01-01", end="2026-02-25", sleep=lambda s: None,
+                               retries=1, workers=1)
+    assert (tmp_path / "iv.partial.jsonl").exists()
+    done_before = calls["n"]
+    iv = data.fetch_implied_vol(["AAPL"], tmp_path, query=flaky, start="2026-01-01", end="2026-02-25", sleep=lambda s: None,
+                                retries=1, workers=1)
+    assert len(iv) == 4 and sorted(iv.date.dt.strftime("%Y-%m-%d")) == ["2026-01-01", "2026-01-15", "2026-01-29", "2026-02-12"]
+    assert calls["n"] - done_before <= 3                              # only the windows not yet cached were fetched
+    assert (tmp_path / "iv.csv").exists() and not (tmp_path / "iv.partial.jsonl").exists()
