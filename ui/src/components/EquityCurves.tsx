@@ -7,7 +7,7 @@ import { int, pct } from "../fmt";
 import type { UiState } from "../state";
 import { toSeries } from "./equitySeries";
 
-const COLORS = { panel: "#11161e", line: "#1f2733", muted: "#8b98a8", accent: "#4cc9f0" };
+const COLORS = { panel: "#2a1d14", line: "#46352a", muted: "#c2b280", accent: "#efe0b9" };
 const DRAW_MS = 600;
 
 function Curve({ points, color, reduced }: { points: EquityPoint[]; color: string; reduced: boolean }) {

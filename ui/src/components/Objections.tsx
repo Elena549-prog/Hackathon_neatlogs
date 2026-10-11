@@ -9,7 +9,7 @@ import { appliedDowngrade, type Followup, type UiState } from "../state";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 // Hex copies of the index.css tokens: Framer can interpolate hex colours, not var() strings.
-const HEX = { line: "#1f2733", accent: "#4cc9f0", amber: "#f59e0b" };
+const HEX = { line: "#46352a", accent: "#efe0b9", amber: "#e2a548" };
 
 const CHECK_LABEL: Record<string, string> = {
   evidence: "Evidence", leakage: "Leakage", decay: "Out-of-sample decay", shared_window: "Shared window",
