@@ -9,7 +9,7 @@ const mmss = (ms: number) => {
 function Meter({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted">{label}</span>
+      <span className="text-xs uppercase tracking-[0.08em] text-muted">{label}</span>
       <span className="tabular-nums text-text">{value}</span>
     </div>
   );

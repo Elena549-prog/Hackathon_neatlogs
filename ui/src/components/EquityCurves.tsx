@@ -20,7 +20,7 @@ function Curve({ points, color, reduced }: { points: EquityPoint[]; color: strin
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: COLORS.panel }, textColor: COLORS.muted, fontFamily: "JetBrains Mono", fontSize: 11, attributionLogo: false },
+      layout: { background: { type: ColorType.Solid, color: COLORS.panel }, textColor: COLORS.muted, fontFamily: "JetBrains Mono", fontSize: 12, attributionLogo: false },
       grid: { vertLines: { color: COLORS.line }, horzLines: { color: COLORS.line } },
       rightPriceScale: { borderColor: COLORS.line },
       timeScale: { borderColor: COLORS.line, timeVisible: false },
@@ -67,8 +67,8 @@ function Curve({ points, color, reduced }: { points: EquityPoint[]; color: strin
 
 function Legend({ label, stats, color }: { label: string; stats: Stats | null; color: string }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px]">
-      <span className="font-semibold tracking-[0.14em]" style={{ color }}>{label}</span>
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-xs">
+      <span className="font-semibold tracking-[0.08em]" style={{ color }}>{label}</span>
       {stats ? (
         <>
           <span className="text-muted">n <span className="text-text">{int(stats.n)}</span></span>
@@ -91,7 +91,7 @@ function BaselineStrip({ stats }: { stats: NonNullable<UiState["stats"]> }) {
   const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1e-9);
   const paired = stats.baseline.paired_ci_low;
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-1 border-t border-line pt-3 font-mono text-[11px]">
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-1 border-t border-line pt-3 font-mono text-xs">
       {rows.map((r) => (
         <div key={r.label} className="contents">
           <span className="text-muted">{r.label}</span>
@@ -121,7 +121,7 @@ export function EquityCurves({ state, reduced }: { state: UiState; reduced: bool
         <Curve points={state.equityTrain} color={COLORS.muted} reduced={reduced} />
         <Curve points={state.equityValidation} color={COLORS.accent} reduced={reduced} />
       </div>
-      {stats ? <BaselineStrip stats={stats} /> : <div className="border-t border-line pt-3 font-mono text-[11px] text-muted">cumulative return per trade, by entry date</div>}
+      {stats ? <BaselineStrip stats={stats} /> : <div className="border-t border-line pt-3 font-mono text-xs text-muted">cumulative return per trade, by entry date</div>}
     </div>
   );
 }

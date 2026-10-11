@@ -36,7 +36,7 @@ export function openEvents(auditId: string, opts: StreamOptions): () => void {
   es.onerror = () => {
     if (closed) return;
     close();
-    opts.onError("event stream lost (is the server running on :8000?)");
+    opts.onError("The event stream was lost. Is the server still running? Press Play to continue from where it stopped.");
   };
   return close;
 }

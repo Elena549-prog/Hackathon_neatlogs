@@ -4,7 +4,7 @@ export function Panel({ title, right, children, className = "" }: { title: strin
   return (
     <section className={`flex min-h-0 flex-col rounded-md border border-line bg-panel ${className}`}>
       <header className="flex items-center justify-between border-b border-line px-4 py-2">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">{title}</h2>
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-muted">{title}</h2>
         {right}
       </header>
       <div className="min-h-0 flex-1 p-4">{children}</div>

@@ -87,6 +87,37 @@ describe("reduce", () => {
   });
 });
 
+describe("reduce: activity feed", () => {
+  it("adds one terse line per agent step, LLM call, tool call, data progress and recovery", () => {
+    const events = [
+      ev(1, { type: "agent_started", agent: "researcher", payload: { step: "data" } }),
+      ev(2, { type: "tool_called", agent: "researcher", payload: { tool: "get_prices", args: { group: "tech", tickers: 17 } } }),
+      ev(3, { type: "tool_result", agent: "researcher", payload: { tool: "get_prices", ok: true, duration_ms: 1200, summary: "17 tickers with prices, 0 skipped" } }),
+      ev(4, { type: "data_progress", agent: "researcher", payload: { what: "prices", percent: 33 } }),
+      ev(5, { type: "recovered", agent: "researcher", payload: { failed: "dolthub timeout", action: "retried", injected: true } }),
+      ev(6, { type: "llm_call", agent: "naysayer", payload: { model: "m", prompt_tokens: 1000, completion_tokens: 234, cost_usd: 0.0012, latency_ms: 1 } }),
+      ev(7, { type: "check_result", agent: "naysayer", payload: { check: "evidence", passed: true, value: 1, note: "n" } }),
+    ];
+    const s = events.reduce(reduce, initialState);
+    expect(s.feed.map((l) => l.text)).toEqual([
+      "started data",
+      "get_prices(group=tech, tickers=17)",
+      "get_prices ok in 1.2s · 17 tickers with prices, 0 skipped",
+      "data 33% · prices",
+      "recovered (INJECTED): dolthub timeout → retried",
+      "m · 1,234 tokens · $0.0012",
+    ]);
+    expect(s.feed[4]).toMatchObject({ seq: 5, agent: "researcher", tone: "injected" });
+  });
+
+  it("keeps only the newest 80 lines", () => {
+    let s = initialState;
+    for (let i = 1; i <= 90; i++) s = reduce(s, ev(i, { type: "data_progress", agent: "researcher", payload: { what: "x", percent: i } }));
+    expect(s.feed).toHaveLength(80);
+    expect(s.feed[0].seq).toBe(11);
+  });
+});
+
 describe("reduce: tolerates a verdict payload with missing parts", () => {
   it("normalises a null headline and missing downgrades", () => {
     const s = reduce(initialState, ev(1, { type: "verdict", agent: null, payload: { verdict: "kill", reason: "r", headline: null } }));
