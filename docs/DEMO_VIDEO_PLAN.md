@@ -93,9 +93,9 @@ Context the voiceover leaves out, for the write-up and Q&A: the AMZN setup is fr
 
 ## Checklist
 
-- [ ] Entire: push the session data for the three linked commits (`push_sessions` true after the key rotation)
+- [x] Entire: the three checkpoints are on origin (pushed 2026-10-12 with Entire's own pre-push hook; automatic pushing stays off until the neatlogs key is rotated)
 - [x] cfo.ai: model built natively, reconciled to the workbook, measured cost set
-- [ ] cfo.ai: share link for the submission (pages are private until then)
+- [x] cfo.ai: share links for the submission, Base https://app.cfo.ai/s/3gz1yhzF4-VhA24I and Growth https://app.cfo.ai/s/wSxyktuJXgE93MQJ
 - [ ] neatlogs: rotate the old API key (STATUS), then record the trace beat
 - [ ] Record the voiceover against the locked cut
 - [ ] Final check: every on-screen number matches the numbers sheet
