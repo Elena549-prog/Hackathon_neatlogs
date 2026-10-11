@@ -9,7 +9,7 @@ Hard rules: paper trades only. No personal financial advice. Test window touched
 | Item | Value |
 |---|---|
 | Watchlist | 5 large-cap tickers (pick now, don't change) |
-| Price history | 2024-10-01 to 2026-09-30, daily OHLCV |
+| Price history | 2023-10-01 to 2026-09-30, daily OHLCV (year before 2024-10-01 = feature history only; see SPEC change log) |
 | Train | 2024-10-01 to 2025-12-31 |
 | Validation | 2026-01-01 to 2026-06-30 |
 | Test | 2026-07-01 to 2026-09-15 (after LLM cutoff; 10 forward days resolvable) |
@@ -34,7 +34,7 @@ Verify the LLM knowledge cutoff in Step 0. If it is later than 2026-07-01, anony
 - **Done when:** one row round-trips through Laya and `docs/laya_schema.md` lists the exact fields.
 
 ## Step 2: Price data (hour 1–3)
-1. `src/data.py`: download daily OHLCV for the 5 tickers, 2024-10-01 to 2026-09-30. Save to `data/prices/<TICKER>.csv`.
+1. `src/data.py`: download daily OHLCV for the 5 tickers, 2023-10-01 to 2026-09-30. Save to `data/prices/<TICKER>.csv`.
 2. Check for gaps longer than 5 trading days. Check row counts per ticker.
 - **Done when:** every ticker has full coverage, and the gap check passes or the ticker is replaced before Step 3.
 

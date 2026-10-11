@@ -9,7 +9,7 @@ Who runs this: a teammate working with Claude Code in this repo. No prior contex
 | Item | Value |
 |---|---|
 | Tickers | AAPL, MSFT, GOOGL, AMZN, NVDA |
-| Price history | 2024-10-01 to 2026-09-30, daily |
+| Price history | 2023-10-01 to 2026-09-30, daily (the year before 2024-10-01 is feature history only; see change log) |
 | Price field | Adjusted close for returns and features. High and Low for label hit checks |
 | Entry price | Adjusted close on setup day t |
 | Train split | Setup dates 2024-10-01 to 2025-12-31 |
@@ -20,6 +20,10 @@ Who runs this: a teammate working with Claude Code in this repo. No prior contex
 | Minimum positive rate per split | 10% and 90% |
 
 **Test-split labels are produced only for the positive-rate check in Step 3. Do not train on them, tune on them, or look at Laya results on them.**
+
+### Change log
+- 2026-10-10 (decided by Elena): price history now starts 2023-10-01 instead of 2024-10-01. Reason: the 200-day moving-average feature needs 200 days of history, so with the old start the first ~200 days of every ticker were dropped and the train split kept only 455 setups (Jul–Dec 2025). The extra year is used only to compute features; setups are still made only for the split dates above, and labels are unchanged.
+- 2026-10-10 (decided by Elena): Step 4b uses `src/finetune_laya.py` (`laya.train.finetune` on our JSONL, library defaults) instead of the Kaggle notebook, which trains on the public typed-decisions dataset rather than an uploaded file.
 
 ## 1. Repo setup (prerequisite)
 
@@ -57,7 +61,7 @@ Who runs this: a teammate working with Claude Code in this repo. No prior contex
 
 1. Write `src/data.py` with a function `download_prices(ticker, start, end)` that returns a DataFrame indexed by date with columns: `Open, High, Low, Close, Adj Close, Volume`.
    - Use `yfinance.download(..., auto_adjust=False)`. Keep both `Close` and `Adj Close`.
-   - Use `start=2024-10-01`, `end=2026-10-01` (end is exclusive).
+   - Use `start=2023-10-01`, `end=2026-10-01` (end is exclusive). See the change log in section 0.
 2. Save each ticker to `data/prices/<TICKER>.csv`.
 3. Check each file:
    - Row count is roughly 500 per year of trading days. A small shortfall at the edges is fine.

@@ -27,14 +27,16 @@ Out of scope:
 
 ## 3. Models
 
-| Agent | Model | Why |
-|---|---|---|
-| Researcher | `claude-haiku-5-5` | Cheap. Summarizes features with citations. |
-| Planner | `claude-sonnet-5-5` | Needs judgment to form a plan. |
-| Naysayer | `claude-sonnet-5-5` | Needs judgment to find flaws. |
-| Mathematician | none (code) | Sizing and EV are arithmetic. Don't ask an LLM. |
+Provider is chosen per run with `--provider`. DeepSeek is the default (changed by the owner on 2026-10-10); Claude stays available.
 
-Model IDs come from the environment list. Confirm before first run.
+| Agent | DeepSeek (default) | Claude (`--provider claude`) | Why |
+|---|---|---|---|
+| Researcher | `deepseek-flash`, thinking off | `claude-haiku-5-5` | Cheap. Summarizes features with citations. |
+| Planner | `deepseek-v4-pro`, thinking on, effort high | `claude-sonnet-5-5` | Needs judgment to form a plan. |
+| Naysayer | `deepseek-v4-pro`, thinking on, effort high | `claude-sonnet-5-5` | Needs judgment to find flaws. |
+| Mathematician | none (code) | none (code) | Sizing and EV are arithmetic. Don't ask an LLM. |
+
+DeepSeek: OpenAI-compatible API at `https://api.deepseek.com`, key in `DEEPSEEK_API_KEY`. Its JSON mode (`response_format: json_object`) guarantees valid JSON but not the schema, so `src/llm.py` checks required keys and types and retries once on an empty or off-schema reply. Cost is logged at peak cache-miss prices, so it is an upper bound.
 
 ## 4. Data flow
 
@@ -66,10 +68,23 @@ Each setup gets at most two rounds. A dropped setup is logged as `dropped`, not 
   "target": 198.98,
   "horizon_days": 10,
   "thesis": "one sentence",
+  "conditions": {"ret_20d": [">", 0.03], "vol_20d": ["<", 0.02]},
   "facts_cited": ["ret_20d", "vol_20d"]
 }
 ```
-Rules: `direction` is `long` only (no shorts in this step). `stop` < `entry` < `target`. `facts_cited` must be a subset of the researcher's output keys.
+Rules: `direction` is `long` only (no shorts in this step). `facts_cited` must be a subset of the researcher's output keys.
+
+**Fixed levels.** The Planner decides only *whether* to trade and *why* (`thesis`, `conditions`). The levels follow the label rule in `docs/SPEC.md` section 0, so every component scores the same bet:
+- `entry` = Adj Close on the setup date
+- `stop` = `entry` × 0.97
+- `target` = `entry` × 1.05
+- `horizon_days` = 10
+
+The validator rejects any plan whose levels differ from these by more than 0.01. Reason: labels, Laya and the train-split backtest all answer "+5% before −3% within 10 days". If the Planner chose other levels, the swarm and Laya would judge different bets and the ensemble (step 8) could not combine them fairly.
+
+**Conditions.** `conditions` states the thesis as checks on the setup's own feature values, e.g. "20-day return above 3% and 20-day volatility below 2%". Allowed operators: `>`, `<`, `>=`, `<=`. Keys must be feature columns from `data/labels/setups.csv`. The setup being decided must satisfy its own conditions. The backtest uses them to find comparable past setups (section 6).
+
+**1 to 4 conditions, enforced by the validator.** A plan with no conditions is "buy everything": that is the buy-and-hold baseline (`GUIDE.md` step 6), not a thesis, and it would leave the Naysayer LLM as the only filter. The Planner prompt asks for 1–4, but the validator must reject 0 or more than 4 as well.
 
 **Naysayer output** (JSON):
 ```json
@@ -83,13 +98,35 @@ Block requires at least one objection. Approve with objections is not allowed.
 ## 6. Tools
 
 - `get_prices(ticker, end_date, lookback_days)`: returns Adj Close and High/Low up to `end_date` only. Must never return data after `end_date`. This is the leakage guard for the agents.
-- `backtest(plan, split="train")`: simulates the plan's thesis on past setups in the train split with the same label rule. Returns hit rate and count. Train split only.
+- `backtest(plan, split="train")`: finds the train-split setups that satisfy `plan.conditions` and returns, under the same label rule:
+  - `n`: number of matching setups,
+  - `hit_rate`: share of them labelled 1,
+  - `hit_rate_low`: the lower end of the 95% Wilson interval for that share.
+
+  Train split only. Matching setups from dates on or after the setup being decided are excluded, so a validation run never sees later data.
+
+  Implementation note (owner): a match counts only if its whole 10-day outcome window ended before the decision date. This is stricter than "dated before": a train setup from late December has a label built from early-January prices, which come after an early-January validation decision. "Eligible train setups" (section 7) means exactly these: train setups whose label was known before the decision date, before any condition is applied.
 
 ## 7. Position sizing (Mathematician)
 
 - Paper account starts at 100,000 (simulated currency).
 - Risk per trade: 2% of account. Size = risk ÷ (entry − stop).
-- EV = p × (target − entry) − (1 − p) × (entry − stop), where p is the backtest hit rate. If EV ≤ 0, the Mathematician reports it and the Naysayer must block.
+- EV = p × (target − entry) − (1 − p) × (entry − stop), with **p = `hit_rate_low`** from the backtest, not the plain hit rate. With the fixed +5% / −3% levels, EV > 0 exactly when p > 3 / 8 = 37.5%.
+- **Hard gate:** the Naysayer must block if any of these holds. The Mathematician reports `n`, the eligible train count, `hit_rate`, `hit_rate_low` and EV.
+  - `n` < 30: too little evidence.
+  - `n` > 80% of the eligible train setups: thesis too broad. A condition every setup meets (e.g. volatility below 50%) does not narrow anything and is the same loophole as no conditions.
+  - EV ≤ 0.
+- Why the cautious estimate: the overall train hit rate is 40.5% (1,263 setups), already above the 37.5% break-even. Using the plain rate, almost any plan would show a positive EV and the gate would rarely fire. Step 1–4 baselines also found no reliable signal in the price features (validation AUC 0.46–0.50), so a gate that demands evidence is the honest default. Examples with the 95% Wilson lower bound:
+
+  | Matching setups | Hit rate | Lower bound | Gate |
+  |---|---|---|---|
+  | 40 | 45% | 30.7% | block |
+  | 300 | 45% | 39.5% | pass |
+  | 1,263 (all train, no real thesis) | 40.5% | 37.8% | block: too broad |
+
+  The last row matters beyond the gate: the validation positive rate is 36.6%, below the 37.5% break-even, so a "buy everything" plan that slipped through would lose money on validation.
+
+- Step 8 (ensemble): once Laya is available, its calibrated probability can replace `hit_rate_low` as p. Decide then; out of scope here.
 - No fees or slippage in this step. State that in the report.
 
 ## 8. Paper-trade simulator
@@ -124,7 +161,10 @@ tests/test_simulator.py
 ## 11. Tests (must pass before any run on real setups)
 
 - `get_prices` returns nothing after `end_date`. Test with a series that has a spike after the date.
-- Plan validator rejects: stop ≥ entry, target ≤ entry, `direction` = short, `facts_cited` not in researcher output.
+- Plan validator rejects: `direction` = short, `facts_cited` not in researcher output, `stop` ≠ `entry` × 0.97, `target` ≠ `entry` × 1.05, `horizon_days` ≠ 10, `entry` ≠ the setup's Adj Close, `conditions` with an unknown feature or operator, and conditions the setup itself does not satisfy.
+- Backtest: on a hand-built table, `n`, `hit_rate` and `hit_rate_low` match hand values (e.g. 18 of 40 → 45.0%, lower bound 30.7%). Setups dated on or after the decision date are never counted.
+- Gate: `n` = 29 blocks; `hit_rate_low` = 0.374 blocks; `hit_rate_low` = 0.376 with `n` ≥ 30 passes; `n` = 81% of eligible setups blocks as too broad; `n` = 79% does not.
+- Validator: a plan with 0 conditions is rejected; 5 conditions are rejected; 1 and 4 are accepted.
 - Naysayer `approve` with objections is rejected. `block` with no objections is rejected.
 - Round cap: a naysayer that always blocks drops the setup after 2 rounds.
 - Simulator: a stop-first path closes as `loss`. A target-first path closes as `win`. Same-day both hit closes as `loss`.
@@ -151,3 +191,19 @@ tests/test_simulator.py
 3. Long-only.
 4. No fees or slippage in this step.
 5. 2% risk per trade on a 100,000 paper account.
+6. Fixed levels: stop −3%, target +5%, 10-day horizon, matching the label rule (section 5).
+7. EV gate on the cautious hit rate: 95% Wilson lower bound, minimum 30 matching setups (section 7).
+8. 1–4 conditions per plan, enforced in code, and a "too broad" block when conditions match more than 80% of eligible train setups. The 80% is a judgment call, not derived (sections 5 and 7).
+
+## 15. Cost controls (owner, 2026-10-11)
+
+The validation run cost about $0.038 per setup (upper bound). The Planner made two thirds of the LLM calls (1,154 of ~1,760), all on `deepseek-v4-pro` with thinking on. Changes, decided by the owner after that run:
+
+1. **Price watcher.** The swarm runs only when a setup shows an unusual 1-day move: `|ret_1d| >= 1.5 x vol_20d`, up or down. Other setups are logged with verdict `skipped`, rounds 0, and no LLM call. The 1.5 was chosen from trigger frequency alone (12.3% of train days, 17.0% of validation days), before looking at any outcome. Both features are known on the setup day, so the watcher adds no leakage.
+2. **Second round only for fixable failures.** After a block, the Planner gets round 2 unless the gate's reason was break-even: at least 30 matches, not too broad, and the cautious hit rate still at or below 37.5%. Rewording does not change that evidence. Too few matches, too broad, invalid plans, and Naysayer objections still get round 2. In the first validation run, every setup used both rounds and round 2 produced one approval.
+3. **Planner effort: unchanged.** The owner asked for medium. DeepSeek's OpenAI-format API accepts `low`, `high` and `max`, and maps `medium` to `high`, so medium costs the same as today. Open decision: keep `high`, or try `low`.
+4. **Gate pre-check: evaluated, not built.** Idea: before calling the Planner, search simple theses (1 or 2 conditions at train deciles that the setup satisfies) in code, and skip the LLM if none passes the gate. Measured on the 98 triggered validation setups: every one has a passing single condition, so the pre-check would skip 0%.
+
+**Finding (for the owners):** the passing single conditions are narrow, not loopholes: the narrowest one per setup matches 9–50% of eligible train setups (median 20%). The most common are `ret_1d >= 90th percentile` (42 of 98 setups) and `ret_5d <= 20th percentile` (23). Two cautions: (a) with 63 candidate single conditions per setup, some pass on train by chance, so "passes the gate" is not proof of an edge; (b) the Planner tries up to two theses per setup, and the gate does not correct for that. The validation outcome of approved trades is the real check.
+
+Tests added (section 11): a quiet setup is skipped with no LLM call; a 1.5-sigma move wakes the swarm; a break-even block ends after round 1; too-few and too-broad blocks get round 2.
