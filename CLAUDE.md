@@ -1,12 +1,14 @@
 # CLAUDE.md
 
-This repo is a hackathon project: a paper-trading agent swarm with a Laya accuracy layer.
+This repo is a hackathon project: the Strategy Auditor, an agent team that tests trading ideas and returns an evidence-backed verdict. It builds on an earlier paper-trading agent swarm (same repo).
 
 ## Where to start
-- `docs/HANDOVER.md` (on branch `step-1-4`): current status, results, decisions and the next step. **Read this first when picking up the work.**
+- `docs/STATUS.md` (branch `swarm`): latest status and next actions across all work. **Read this first.**
+- `docs/AUDITOR_SPEC.md`: the Strategy Auditor, the main agent (spec approved 2026-10-11; build it next).
+- `docs/HANDOVER.md` (on branch `step-1-4`): background on steps 1–4 (data, labels, Laya fine-tune). Done.
 - `docs/PLAN.md`: the approved plan (goal, phases, fallback).
 - `GUIDE.md`: the 13-step guide for the whole project.
-- `docs/SPEC.md`: the detailed spec for Steps 1–4 (schema check, price data, labels and splits, Laya export and Kaggle fine-tune). **If asked to start work, begin with `docs/SPEC.md`.**
+- `docs/SPEC.md`: the spec for steps 1–4 (done). Its frozen values still apply to the data and labels.
 
 ## Ground rules
 - Paper trading and historical replay only. No live trading, no real money, no personalized financial advice.

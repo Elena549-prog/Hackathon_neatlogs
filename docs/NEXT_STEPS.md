@@ -71,6 +71,8 @@ This is the step `docs/HANDOVER.md` lists as next. Use Route A (Kaggle notebook)
 
 ## 4. cfo.ai business plan (Zeeshan, 1 hour)
 
+**Update:** the model is built: `results/business_model.xlsx`, with import steps and prompts for Ari in `docs/CFO_AI.md`. The steps below are the background.
+
 1. Sign up at cfo.ai/neathacks. **Cancel the subscription immediately** in Settings → Billing (rule from the hackathon page). The neatHack team provides credits.
 2. Build the model from measured numbers, not guesses:
 
