@@ -82,6 +82,18 @@ Files: `swarm_validation_current_summary.md`, `swarm_validation_current.jsonl`. 
 
 **Reading.** The swarm has approved one trade in all runs to date (old config, GOOGL 2026-05-29, −3%). The watcher alone (1.5 x 20-day vol, set on train for cost) selected setups above the 37.5% break-even in both windows, but neither sample is large enough to call that an edge (n 98 and 24). The gate plus the Naysayer declined all of them. Run after the test result, so it is evidence about the config, not a basis for changing it and re-testing on the same data.
 
+## Naysayer v2: post-hoc replay of AMZN 2026-07-30 (demo, not evidence)
+
+Naysayer v2 (`f5332a2`) leaves the evidence bar to the coded gate and blocks concrete defects only; the reason is the validation figure above (v1's blocks of gate-passing plans would have won 16 of 38). To isolate the prompt change, `scripts/naysayer_replay.py` gave v2 the exact plan, facts and math v1 saw for AMZN 2026-07-30 in the test run (input copied from its neatlogs trace into `posthoc_amzn_v1_naysayer.json`).
+
+| | Verdict |
+|---|---|
+| v1 (test run) | block: "ret_1d > 0.01 does not express a strong one-day reversal" |
+| v2 (replay) | approve, no objections |
+| Paper trade | long at 235.50, stop 228.44, target 247.28: target hit on day 1 (next close 271.58), **+5.0%** |
+
+Result in `posthoc_amzn_v1_naysayer_v2.json`. **Post-hoc:** this setup was in the test window already seen, and v2 was written after the test run, so this shows what the change does, not that it works. The overnight +15% gap was not predictable from the plan. A full re-run of the setup with v2 (`runs/swarm_test_posthoc_AMZN_2026-07-30.jsonl`) did not reach the Naysayer: the Planner wrote different plans (round 1 failed the gate with n 2, round 2 was invalid). Evidence for v2 can only come from new days (`src/forward.py`).
+
 ## Traces
 
 Every setup is one neatlogs trace in the `trading-swarm` workflow: a WORKFLOW span `swarm`, with AGENT and TOOL spans (researcher, planner, mathematician, naysayer, get_prices, backtest) tagged `agent`, `round`, `ticker`, `date`, and neatlogs' own LLM spans nested under each agent.

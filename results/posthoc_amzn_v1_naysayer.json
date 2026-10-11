@@ -1,0 +1,69 @@
+{
+ "source": "neatlogs trace 0e29a7c498c5a691d150112477dd6685 (one-shot test run, 2026-10-11, Naysayer v1)",
+ "ticker": "AMZN",
+ "date": "2026-07-30",
+ "input": {
+  "plan": {
+   "entry": 100.0,
+   "stop": 97.0,
+   "target": 105.0,
+   "horizon_days": 10,
+   "thesis": "A short-term pullback that remains above the 200-day moving average and shows a strong one-day reversal is likely to resume higher, making the fixed 3% risk versus 5% reward long attractive.",
+   "conditions": {
+    "ret_1d": [
+     ">",
+     0.01
+    ],
+    "ret_10d": [
+     "<",
+     -0.02
+    ],
+    "close_to_ma200": [
+     ">",
+     1.0
+    ]
+   },
+   "facts_cited": [
+    "ret_1d",
+    "ret_10d",
+    "close_to_ma200"
+   ]
+  },
+  "facts": {
+   "ret_1d": "The 1-day return is 0.0390, meaning today's close is 3.90% above the prior day's close.",
+   "ret_10d": "The 10-day return is -0.0576, meaning today's close is 5.76% below the close 10 trading days ago.",
+   "ret_20d": "The 20-day return is -0.0257, meaning today's close is 2.57% below the close 20 trading days ago.",
+   "vol_20d": "The 20-day volatility (standard deviation of daily returns) is 0.0181, or about 1.81% per day.",
+   "close_to_ma50": "Today's close is 0.9558 of the 50-day moving average, i.e., about 4.42% below it.",
+   "close_to_ma200": "Today's close is 1.0032 of the 200-day moving average, i.e., about 0.32% above it."
+  },
+  "math": {
+   "n": 39,
+   "eligible": 1263,
+   "match_share": 0.030878859857482184,
+   "hit_rate": 0.5897435897435898,
+   "hit_rate_low": 0.4341834847334491,
+   "ev_pct": 0.004734678778675946,
+   "conditions": {
+    "ret_1d": [
+     ">",
+     0.01
+    ],
+    "ret_10d": [
+     "<",
+     -0.02
+    ],
+    "close_to_ma200": [
+     ">",
+     1.0
+    ]
+   }
+  }
+ },
+ "v1_output": {
+  "verdict": "block",
+  "objections": [
+   "The ret_1d > 0.01 condition does not express the thesis's 'strong one-day reversal'. Given vol_20d = 0.0181, a 1% daily gain is only about 0.55 standard deviations, so this filter admits weak bounces rather than strong reversals. The Planner should strengthen the reversal threshold (e.g., ret_1d > 0.02 or ret_1d > k * vol_20d) and re-run the gate."
+  ]
+ }
+}
