@@ -74,7 +74,7 @@ function Legend({ label, stats, color }: { label: string; stats: Stats | null; c
           <span className="text-muted">n <span className="text-text">{int(stats.n)}</span></span>
           <span className="text-muted">mean <span className="text-text">{pct(stats.mean)}</span></span>
           <span className="text-muted">95% <span className="text-text">[{pct(stats.ci_low)}, {pct(stats.ci_high)}]</span></span>
-          <span className="text-muted">win <span className="text-text">{pct(stats.win_rate, 0)}</span></span>
+          <span className="text-muted">win <span className="text-text">{(stats.win_rate * 100).toFixed(0)}%</span></span>
         </>
       ) : (
         <span className="text-muted">waiting for backtest</span>
