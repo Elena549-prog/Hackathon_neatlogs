@@ -142,3 +142,17 @@ def test_live_stream_ends_after_error(live):
 def test_post_without_idea_is_422(live):
     client, _, _ = live
     assert client.post("/api/audits", json={}).status_code == 422
+
+
+def test_replay_survives_corrupt_line_and_bad_seq(client, tmp_path):
+    path = tmp_path / "runs/synthetic-demo/events.jsonl"
+    lines = path.read_text().splitlines()
+    lines.insert(3, "{corrupt")
+    lines.insert(6, json.dumps({"seq": "bad", "ts": "2026-10-11T12:00:00", "audit_id": "synthetic-demo",
+                                "type": "agent_started", "agent": "planner", "payload": {"step": "x"}}))
+    path.write_text("\n".join(lines) + "\n")
+    r = client.get("/api/audits/synthetic-demo/events?replay=1&speed=8")
+    assert r.status_code == 200
+    assert len(sse_events(r.text)) == len(lines) - 1          # the corrupt line is skipped, the bad-seq one streams
+    assert r.text.rstrip().endswith("event: end\ndata: {}")
+    assert client.get("/api/audits").json()[0]["audit_id"] == "synthetic-demo"

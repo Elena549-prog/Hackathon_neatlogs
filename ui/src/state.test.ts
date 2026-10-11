@@ -86,3 +86,11 @@ describe("reduce", () => {
     expect(JSON.stringify(initialState)).toBe(before);
   });
 });
+
+describe("reduce: tolerates a verdict payload with missing parts", () => {
+  it("normalises a null headline and missing downgrades", () => {
+    const s = reduce(initialState, ev(1, { type: "verdict", agent: null, payload: { verdict: "kill", reason: "r", headline: null } }));
+    expect(s.verdict?.headline).toEqual({});
+    expect(s.verdict?.downgrades).toEqual([]);
+  });
+});

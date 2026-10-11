@@ -19,9 +19,23 @@ def read_event_lines(path):
     out = []
     for line in text.splitlines():
         line = line.strip()
-        if line:
-            out.append((line, json.loads(line)))
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue        # a corrupt line must not kill a replay; it is skipped like a partial one
+        if isinstance(event, dict):
+            out.append((line, event))
     return out
+
+
+def event_seq(event):
+    """The event's seq as an int, or None when missing or unparsable."""
+    try:
+        return int(event["seq"])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def read_events(path):
@@ -41,10 +55,12 @@ def clamp_speed(value):
 
 
 def _parse_ts(value):
+    """Aware datetime, or None. A naive timestamp is taken as UTC so gaps never mix naive and aware."""
     try:
-        return dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
+        ts = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
         return None
+    return ts if ts.tzinfo else ts.replace(tzinfo=dt.timezone.utc)
 
 
 def replay_delays(events, speed, cap_s=GAP_CAP_S):
@@ -53,7 +69,10 @@ def replay_delays(events, speed, cap_s=GAP_CAP_S):
     delays, previous = [], None
     for event in events:
         ts = _parse_ts(event.get("ts"))
-        gap = (ts - previous).total_seconds() if ts and previous else 0.0
+        try:
+            gap = (ts - previous).total_seconds() if ts and previous else 0.0
+        except TypeError:
+            gap = 0.0
         delays.append(min(cap_s, max(0.0, gap)) / speed)
         previous = ts or previous
     return delays

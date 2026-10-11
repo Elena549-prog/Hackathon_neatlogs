@@ -102,8 +102,13 @@ export function reduce(prev: UiState, e: AuditEvent): UiState {
         links: link("naysayer", "mathematician") };
     case "recovered":
       return { ...s, recoveries: [...s.recoveries, e.payload] };
-    case "verdict":
-      return { ...s, phase: "done", verdict: e.payload };
+    case "verdict": {
+      // Tolerate a payload with missing parts so one odd line never blanks the screen.
+      const p = e.payload ?? ({} as VerdictEvent["payload"]);
+      const headline = p.headline && typeof p.headline === "object" ? p.headline : {};
+      const downgrades = Array.isArray(p.downgrades) ? p.downgrades : [];
+      return { ...s, phase: "done", verdict: { ...p, verdict: p.verdict, reason: typeof p.reason === "string" ? p.reason : "", headline, downgrades } };
+    }
     case "report_ready":
       return { ...s, report: { path: e.payload.path, traceId: e.payload.trace_id }, agents: { ...s.agents, reporter: "done" } };
     case "error":

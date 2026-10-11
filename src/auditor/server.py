@@ -26,7 +26,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .replay import clamp_speed, find_audit_dir, read_event_lines, replay_delays
+from .replay import clamp_speed, event_seq, find_audit_dir, read_event_lines, replay_delays
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_ROOTS = [REPO / "runs" / "audits", REPO / "results" / "audits"]
@@ -78,7 +78,7 @@ class AuditRunner:
         path = self.root / audit_id / "events.jsonl"
         events = [e for _, e in read_event_lines(path)] if path.is_file() else []
         if not any(e.get("type") in TERMINAL for e in events):
-            seq = max((int(e.get("seq", 0)) for e in events), default=0) + 1
+            seq = max((event_seq(e) or 0 for e in events), default=0) + 1
             event = {"seq": seq, "ts": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
                      "audit_id": audit_id, "type": "error", "agent": None,
                      "payload": {"step": "run", "message": "auditor exited with code %s without a verdict" % code}}
@@ -163,7 +163,8 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
         pairs = read_event_lines(path)
         delays = replay_delays([e for _, e in pairs], speed)
         for (line, event), delay in zip(pairs, delays):
-            if int(event.get("seq", 0)) <= after:
+            seq = event_seq(event)
+            if seq is not None and seq <= after:
                 continue
             if delay:
                 await sleep(delay)
@@ -175,10 +176,10 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
         seen_verdict = False
         while True:
             for line, event in read_event_lines(path) if path.is_file() else []:
-                seq = int(event.get("seq", 0))
-                if seq <= after:
+                seq = event_seq(event)
+                if seq is not None and seq <= after:
                     continue
-                after = seq
+                after = seq if seq is not None else after
                 yield _sse(seq, line)
                 kind = event.get("type")
                 seen_verdict = seen_verdict or kind == "verdict"

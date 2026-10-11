@@ -5,6 +5,22 @@ import { initialState, reduce, type UiState } from "./state";
 import { listAudits, openEvents } from "./stream";
 
 export const NO_RECORDING = "No recording for this idea. Record one with the auditor first.";
+const SYNTHETIC_PREFIX = "SYNTHETIC FIXTURE";
+const MIN_QUERY = 3;
+
+/** The development fixture labels itself through its idea text (scripts/synthetic_audit.py). */
+export const isSynthetic = (idea: string): boolean => idea.startsWith(SYNTHETIC_PREFIX);
+
+/** The recording to play for a typed idea or chip: a real recording wins over the synthetic fixture. */
+export function pickAudit(audits: AuditSummary[], text: string): AuditSummary | null {
+  const t = text.trim().toLowerCase();
+  if (t.length < MIN_QUERY) return null;
+  const matches = audits.filter((a) => {
+    const i = a.idea.toLowerCase();
+    return i.includes(t) || t.includes(i);
+  });
+  return matches.find((a) => !isSynthetic(a.idea)) ?? matches[0] ?? null;
+}
 
 export interface AuditSession {
   state: UiState;
@@ -91,12 +107,8 @@ export function useAudit(): AuditSession {
 
   const submitIdea = useCallback(
     (text: string) => {
-      const t = text.trim().toLowerCase();
-      if (!t) return;
-      const found = audits.find((a) => {
-        const i = a.idea.toLowerCase();
-        return i.includes(t) || t.includes(i);
-      });
+      if (!text.trim()) return;
+      const found = pickAudit(audits, text);
       if (found) play(found.audit_id);
       else setState((s) => ({ ...s, errors: [...s.errors, NO_RECORDING] }));
     },

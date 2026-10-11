@@ -33,3 +33,25 @@ def test_find_audit_dir(tmp_path):
     assert find_audit_dir("demo", [runs, results]) == results / "demo"
     assert find_audit_dir("nope", [runs, results]) is None
     assert find_audit_dir("../demo", [runs, results]) is None
+
+
+# --- review fixes: a bad line or odd timestamp must not kill a replay ---
+from src.auditor.replay import event_seq
+
+
+def test_read_events_skips_corrupt_complete_line(tmp_path):
+    p = tmp_path / "events.jsonl"
+    p.write_text(json.dumps(ev(1, "t")) + "\n{not json}\n" + json.dumps(ev(2, "t")) + "\n")
+    assert [e["seq"] for e in read_events(p)] == [1, 2]
+
+
+def test_delays_tolerate_naive_and_aware_timestamps():
+    events = [ev(1, "2026-10-11T12:00:00"), ev(2, "2026-10-11T12:00:01Z"), ev(3, "garbage"), ev(4, "2026-10-11T12:00:02+00:00")]
+    assert replay_delays(events, 1) == [0.0, 1.0, 0.0, 1.0]
+
+
+def test_event_seq_coerces_bad_values():
+    assert event_seq({"seq": 7}) == 7
+    assert event_seq({"seq": "8"}) == 8
+    assert event_seq({"seq": "x"}) is None
+    assert event_seq({}) is None
