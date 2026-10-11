@@ -17,11 +17,13 @@ KINDS = {"workflow": "WORKFLOW", "agent": "AGENT", "llm": "AGENT", "tool": "TOOL
 
 
 class Tracer:
-    def __init__(self, open_span=None, flush=None):
+    def __init__(self, open_span=None, flush=None, on_span=None):
         """open_span(name, kind=..., **attributes) is a context manager yielding an OTel span
-        (neatlogs.trace in production). Without it, spans are kept locally only."""
+        (neatlogs.trace in production). Without it, spans are kept locally only.
+        on_span(rec) is called when a span ends (the auditor turns llm spans into events)."""
         self.open_span = open_span
         self._flush = flush
+        self.on_span = on_span
         self.spans = []
 
     @contextlib.contextmanager
@@ -48,6 +50,11 @@ class Tracer:
                 self.spans.append(rec)
                 if otel_span is not None:
                     _annotate(otel_span, rec)
+                if self.on_span is not None:
+                    try:
+                        self.on_span(rec)
+                    except Exception:   # a listener must never mask the span's own outcome
+                        pass
 
     def total_cost(self):
         return sum(s["cost"] for s in self.spans)

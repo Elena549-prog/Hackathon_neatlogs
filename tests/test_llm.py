@@ -82,3 +82,9 @@ def test_claude_sonnet_uses_server_side_fallback_and_haiku_does_not():
 def test_unknown_provider():
     with pytest.raises(ValueError):
         make_llm(Tracer(), "nope", object())
+
+
+def test_reporter_role_exists():
+    from src.llm import DEEPSEEK_THINKING, MODELS
+    assert MODELS["deepseek"]["reporter"] == "deepseek-flash" and MODELS["claude"]["reporter"] == "claude-haiku-5-5"
+    assert DEEPSEEK_THINKING["reporter"] is False

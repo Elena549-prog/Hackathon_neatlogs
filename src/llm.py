@@ -12,13 +12,15 @@ import os
 
 
 MODELS = {
-    "deepseek": {"researcher": "deepseek-flash", "planner": "deepseek-v4-pro", "naysayer": "deepseek-v4-pro"},
-    "claude": {"researcher": "claude-haiku-5-5", "planner": "claude-sonnet-5-5", "naysayer": "claude-sonnet-5-5"},
+    "deepseek": {"researcher": "deepseek-flash", "planner": "deepseek-v4-pro", "naysayer": "deepseek-v4-pro",
+                 "reporter": "deepseek-flash"},
+    "claude": {"researcher": "claude-haiku-5-5", "planner": "claude-sonnet-5-5", "naysayer": "claude-sonnet-5-5",
+               "reporter": "claude-haiku-5-5"},
 }
 # $ per 1M tokens (input, output). ponytail: DeepSeek at peak, cache-miss rates, so cost is an upper bound.
 PRICES = {"deepseek-flash": (0.30, 1.20), "deepseek-v4-pro": (1.32, 3.96),
           "claude-haiku-5-5": (0.10, 0.50), "claude-sonnet-5-5": (2.00, 10.00)}
-DEEPSEEK_THINKING = {"researcher": False, "planner": True, "naysayer": True}
+DEEPSEEK_THINKING = {"researcher": False, "planner": True, "naysayer": True, "reporter": False}
 CLAUDE_EFFORT = {"claude-haiku-5-5": "low", "claude-sonnet-5-5": "medium"}
 ATTEMPTS = 2
 
