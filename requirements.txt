@@ -1,0 +1,15 @@
+# Server (section 16) and tests
+fastapi
+uvicorn[standard]
+httpx
+pytest
+# Trading swarm and auditor (existing imports)
+pandas
+numpy
+scikit-learn
+yfinance
+openai
+anthropic
+neatlogs
+opentelemetry-api
+python-dotenv
