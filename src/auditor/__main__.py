@@ -5,6 +5,7 @@
     python -m src.auditor --resume <audit_id>
     python -m src.auditor --fault dolthub_timeout "<idea>"    # or --fault llm_empty (section 6)
     python -m src.auditor --provider fake "<idea>"            # keyword fake LLM: development only
+    python -m src.auditor --no-followups "<idea>"             # M1 behaviour (no follow-ups), the "before" runs
 
 DeepSeek runs refuse to start when the account balance is below $2 (section 8).
 """
@@ -79,6 +80,8 @@ def main(argv=None):
     ap.add_argument("--fault", choices=["dolthub_timeout", "llm_empty"], help="inject one failure (labelled INJECTED)")
     ap.add_argument("--provider", default="deepseek", choices=["deepseek", "claude", "fake"])
     ap.add_argument("--no-balance-check", action="store_true", help="skip the DeepSeek balance check")
+    ap.add_argument("--no-followups", action="store_true",
+                    help="skip Naysayer call 1 and the follow-ups F1-F4 (the M1 behaviour, for the before/after runs)")
     ap.add_argument("--root", default=str(REPO / "runs" / "audits"))
     ap.add_argument("--cache", default=str(REPO / "data" / "cache"))
     args = ap.parse_args(argv)
@@ -120,7 +123,8 @@ def main(argv=None):
 
     audit_id = args.resume or args.audit_id or new_audit_id()
     out = run_audit(args.idea or "", audit_id, llm, tracer, root=Path(args.root), cache_dir=Path(args.cache),
-                    fetchers=make_fetchers(args.fault), fault=args.fault, resume=bool(args.resume), provider=args.provider)
+                    fetchers=make_fetchers(args.fault), fault=args.fault, resume=bool(args.resume), provider=args.provider,
+                    followups=not args.no_followups)
     tracer.flush()
     v = out["verdict"]
     print("audit %s" % audit_id)

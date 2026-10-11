@@ -76,7 +76,7 @@ export function VerdictStamp({ state, reduced, reportUrl, traceUrl }: { state: U
         {v.downgrades.length > 0 && (
           <ul className="flex flex-wrap gap-2 font-mono text-[11px]">
             {v.downgrades.map((d, i) => (
-              <li key={i} className="rounded-full border border-inconclusive/60 px-2 py-0.5 text-inconclusive">
+              <li key={i} title={typeof d.cause === "string" ? d.cause : undefined} className="max-w-full truncate rounded-full border border-inconclusive/60 px-2 py-0.5 text-inconclusive">
                 downgrade: {typeof d.cause === "string" ? d.cause : JSON.stringify(d)}
               </li>
             ))}

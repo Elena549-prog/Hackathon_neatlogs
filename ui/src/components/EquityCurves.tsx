@@ -67,7 +67,7 @@ function Curve({ points, color, reduced }: { points: EquityPoint[]; color: strin
 
 function Legend({ label, stats, color }: { label: string; stats: Stats | null; color: string }) {
   return (
-    <div className="flex items-baseline gap-3 font-mono text-[11px]">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px]">
       <span className="font-semibold tracking-[0.14em]" style={{ color }}>{label}</span>
       {stats ? (
         <>

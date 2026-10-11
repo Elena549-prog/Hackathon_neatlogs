@@ -120,17 +120,30 @@ def render(ctx):
     lines += ["", "## 5. Coded checks and follow-ups", "", "| Check | Passed | Note |", "|---|---|---|"]
     lines += ["| %s | %s | %s |" % (c["check"], "yes" if c["passed"] else "no", c["note"]) for c in ctx.get("checks") or []]
     fus = ctx.get("followups") or []
-    lines += ["", "Follow-ups: " + ("none run (M1)" if not fus else "")]
+    lines += ["", "Follow-ups (chosen by the Naysayer, run in code on plan v0; a met rule only turns promising into "
+                  "inconclusive):" if fus else "Follow-ups: none run."]
+    if ctx.get("followups_note"):
+        lines.append("Note: %s." % ctx["followups_note"].rstrip("."))
     for f in fus:
-        lines.append("- %s: %s. Result: %s. %s" % (f["id"], f["reason"], f.get("result", "n/a"),
-                                                 ("Downgrade: %s" % f["downgrade"]) if f.get("downgrade") else "No downgrade."))
+        rule = "Downgrade rule met: %s." % f["cause"] if f.get("downgrade") else "Downgrade rule not met."
+        lines.append("- %s %s. Naysayer's reason: %s. Result: %s.%s %s" % (
+            f["id"], f.get("title", ""), (f.get("reason") or "none given").rstrip("."), f.get("result", "n/a"),
+            " Top-contributing ticker: %s." % f["ticker"] if f.get("ticker") else "", rule))
+        if f.get("per_year"):
+            lines.append("  Train mean per year: " + ", ".join("%s %s (n %d)" % (y, pct(r["mean"]), r["n"])
+                                                                for y, r in sorted(f["per_year"].items())) + ".")
+    for f in ctx.get("followups_ignored") or []:
+        lines.append("- %s requested but not run: %s." % (f["id"] or "(blank)", f["why"]))
     if v.get("downgrades"):
         lines += ["", "Downgrades: " + "; ".join(d["cause"] for d in v["downgrades"]) + "."]
 
     lines += ["", "## 6. Shared validation window", "",
               "%d audit(s) have used this validation window before this one. %s" % (ctx.get("window_count", 0), FIVE_PCT_LINE)]
 
-    lines += ["", "## 7. Naysayer critique and Reporter prose", "", "Naysayer: %s" % (ctx.get("critique") or "n/a")]
+    lines += ["", "## 7. Naysayer critique and Reporter prose", ""]
+    if ctx.get("doubts"):
+        lines += ["Naysayer's doubts before the follow-ups: " + "; ".join(ctx["doubts"]) + ".", ""]
+    lines.append("Naysayer: %s" % (ctx.get("critique") or "n/a"))
     if ctx.get("prose"):
         lines += ["", "Reporter: %s" % ctx["prose"]]
     else:

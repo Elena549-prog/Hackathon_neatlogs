@@ -83,7 +83,7 @@ def test_end_to_end_writes_everything(world, tmp_path):
     assert report.splitlines()[2].startswith("stock_long on all_50") and state["steps"]["plan"]["result"]["hash"] in report
     assert "FAKE LLM" in report
     assert len((tmp_path / "audits" / "registry.jsonl").read_text().splitlines()) == 1
-    assert state["llm_calls"] == 3 and out["events_path"].endswith("events.jsonl")
+    assert state["llm_calls"] == 4 and out["events_path"].endswith("events.jsonl")    # planner, naysayer x2, reporter
 
 
 def test_plan_is_frozen_before_backtest(world, tmp_path):
@@ -277,3 +277,77 @@ def test_spans_and_trace_id(world, tmp_path):
     assert next(e for e in ev if e["type"] == "report_ready")["payload"]["trace_id"] == tracer.trace_id
     workflow = next(s for s in tracer.spans if s["kind"] == "workflow")
     assert workflow["tags"]["audit_id"] == "a1"
+
+
+def test_followups_run_after_naysayer_choice(world, tmp_path):
+    tracer = Tracer()
+    out = go(world, tmp_path, tracer=tracer)        # the fake Naysayer asks for F1-F4: stock_long runs the first 3
+    ev = events_of(tmp_path)
+    req = [e["payload"]["followup"] for e in ev if e["type"] == "followup_requested"]
+    runs = [e for e in ev if e["type"] == "backtest_result" and e["payload"]["run"].startswith("F")]
+    assert req == ["F1", "F2", "F3"] and [e["payload"]["run"] for e in runs] == req
+    assert all(validate_event(e) == [] for e in ev)
+    assert all({"title", "result", "downgrade", "cause", "reason"} <= set(e["payload"]) for e in runs)
+    first_run = ev.index(runs[0])
+    assert all(ev.index(e) < first_run for e in ev if e["type"] == "followup_requested")
+    critique_call = [i for i, e in enumerate(ev) if e["type"] == "llm_call" and e["agent"] == "naysayer"][-1]
+    assert critique_call > ev.index(runs[-1])
+    assert any(s["kind"] == "tool" and s["tags"].get("followup") == "F3" for s in tracer.spans)
+    report = Path(out["report_path"]).read_text()
+    assert "F4 requested but not run: at most 3 follow-ups per audit" in report and "F2 Per-year stability" in report
+    assert "Earnings caveat" in report                       # F1 ran
+    reg = json.loads((tmp_path / "audits" / "registry.jsonl").read_text())
+    assert reg["followups"] == ["F1", "F2", "F3"]
+
+
+def test_f3_not_run_for_straddles(world, tmp_path):
+    go(world, tmp_path, idea="sell straddles on low-volatility mega-caps")
+    ev = events_of(tmp_path)
+    assert [e["payload"]["followup"] for e in ev if e["type"] == "followup_requested"] == ["F1", "F2", "F4"]
+    state = json.loads((tmp_path / "audits" / "a1" / "state.json").read_text())
+    assert {"id": "F3", "why": "not run for straddle_sell"} in state["steps"]["choose"]["result"]["ignored"]
+
+
+def test_no_followups_is_the_m1_behaviour(world, tmp_path):
+    out = go(world, tmp_path, followups=False)
+    ev = events_of(tmp_path)
+    assert not any(e["type"] == "followup_requested" for e in ev)
+    assert [e["payload"]["run"] for e in ev if e["type"] == "backtest_result"] == ["base"]
+    state = json.loads((tmp_path / "audits" / "a1" / "state.json").read_text())
+    assert state["llm_calls"] == 3 and state["steps"]["choose"]["result"]["disabled"] is True
+    assert "follow-ups disabled for this run" in Path(out["report_path"]).read_text()
+
+
+def test_followup_downgrade_reaches_the_verdict(world, tmp_path, monkeypatch):
+    from src.auditor import followups as fu, verdict as vmod
+    seen, real = {}, vmod.decide
+
+    def decide(results):
+        seen["downgrades"] = results["followup_downgrades"]
+        return real(results)
+
+    monkeypatch.setattr(fu, "f2_per_year", lambda trades, base, cal: fu._record("F2", "forced", True, base))
+    monkeypatch.setattr(runmod.verdict_mod, "decide", decide)
+    go(world, tmp_path)
+    assert {"cause": "F2 per-year stability: " + fu.MENU["F2"][2]} in seen["downgrades"]
+
+
+def test_resume_after_followup_choice_does_not_recall_naysayer(world, tmp_path, monkeypatch):
+    tracer = Tracer()
+    inner = make_fake_llm(tracer)
+    calls = []
+
+    def llm(agent, *a, **kw):
+        calls.append((agent, kw.get("step")))
+        return inner(agent, *a, **kw)
+
+    real = runmod.Audit.step_followups
+    monkeypatch.setattr(runmod.Audit, "step_followups", lambda self: (_ for _ in ()).throw(RuntimeError("killed")))
+    with pytest.raises(RuntimeError):
+        go(world, tmp_path, llm=llm, tracer=tracer)
+    monkeypatch.setattr(runmod.Audit, "step_followups", real)
+    go(world, tmp_path, llm=llm, tracer=tracer, resume=True)
+    assert calls.count(("naysayer", "followups")) == 1 and calls.count(("planner", "plan")) == 1
+    ev = events_of(tmp_path)
+    assert [e["seq"] for e in ev] == list(range(1, len(ev) + 1))
+    assert [e["payload"]["run"] for e in ev if e["type"] == "backtest_result" and e["payload"]["run"].startswith("F")] == ["F1", "F2", "F3"]

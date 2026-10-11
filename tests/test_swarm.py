@@ -1,5 +1,6 @@
 """Swarm: plan rules, the hard gate, round cap, fail-closed behavior, what agents can see, tracing."""
 import json
+import os
 
 import pytest
 
@@ -249,6 +250,71 @@ def test_fixable_gate_blocks_get_a_second_round(monkeypatch, bt, reason):
 def test_refuses_the_test_split():
     with pytest.raises(SystemExit):
         swarm.run("test", market(), fake_llm(), Tracer())
+
+
+# ------------------------------------------------------------------- the one-time test run
+
+@pytest.fixture
+def cli(monkeypatch, tmp_path, good_backtest):
+    """main() in tmp_path on a synthetic test split of four setups. No data files, no network."""
+    m = make_market({"AAA": [100.0] * 80}, [("AAA", i, "test", 1) for i in range(30, 34)])
+    llm = fake_llm()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("src.tools.load_market", lambda: m)
+    monkeypatch.setattr("src.llm.make_llm", lambda tracer, provider: llm)
+    monkeypatch.setattr("src.tracing.make_tracer", lambda tags: Tracer())
+    return m, llm
+
+
+@pytest.mark.parametrize("argv, reason", [
+    (["--split", "test"], "--final-test"),
+    (["--split", "validation", "--final-test"], "needs --split test"),
+    (["--split", "test", "--final-test", "--limit", "2"], "--limit"),
+])
+def test_cli_refuses_misuse_of_the_test_split(cli, argv, reason):
+    with pytest.raises(SystemExit, match=reason):
+        swarm.main(argv)
+    assert not cli[1].calls and not os.path.exists("runs")
+
+
+def test_final_test_runs_once_then_refuses_to_overwrite(cli):
+    swarm.main(["--split", "test", "--final-test"])
+    first = open(os.path.join("runs", "swarm_test.jsonl")).read()
+    assert len(first.splitlines()) == 4
+    n_calls = len(cli[1].calls)
+    with pytest.raises(SystemExit, match="--resume"):
+        swarm.main(["--split", "test", "--final-test"])
+    assert open(os.path.join("runs", "swarm_test.jsonl")).read() == first
+    assert len(cli[1].calls) == n_calls
+
+
+@pytest.mark.parametrize("path", [os.path.join("runs", "swarm_test.jsonl.tmp"),       # an interrupted run
+                                  os.path.join("results", "swarm_test_summary.md"),
+                                  os.path.join("results", "swarm_test.jsonl")])
+def test_final_test_refuses_an_existing_test_result(cli, path):
+    os.makedirs(os.path.dirname(path))
+    open(path, "w").write("x\n")
+    with pytest.raises(SystemExit, match="exists"):
+        swarm.main(["--split", "test", "--final-test"] + (["--resume"] if path.startswith("results") else []))
+    assert open(path).read() == "x\n" and not cli[1].calls
+
+
+def test_final_test_resume_decides_only_errors_and_missing_setups(cli):
+    m, llm = cli
+    dates = list(m.setups["date"])
+    kept = {"ticker": "AAA", "date": dates[0], "split": "test", "rounds": 2, "verdict": "dropped",
+            "plan": None, "objections": ["kept as is"], "trade_outcome": None, "pnl_pct": None, "label": 1}
+    os.makedirs("runs")
+    with open(os.path.join("runs", "swarm_test.jsonl"), "w") as f:
+        f.write(json.dumps(kept) + "\n" + json.dumps(dict(kept, date=dates[1], verdict="error", error="429")) + "\n")
+    with open(os.path.join("runs", "swarm_test.jsonl.tmp"), "w") as f:     # left by an interrupted resume
+        f.write(json.dumps(dict(kept, date=dates[2], objections=["from the tmp"])) + "\n" + '{"ticker": "AA')
+    swarm.main(["--split", "test", "--final-test", "--resume"])
+    assert [c["agent"] for c in llm.calls].count("researcher") == 2          # the error and the missing one
+    recs = [json.loads(l) for l in open(os.path.join("runs", "swarm_test.jsonl"))]
+    assert [r["date"] for r in recs] == dates
+    assert recs[0]["objections"] == ["kept as is"] and recs[2]["objections"] == ["from the tmp"]
+    assert recs[1]["verdict"] == "approve" and recs[3]["verdict"] == "approve"
 
 
 # -------------------------------------------------------------------------------- tracing

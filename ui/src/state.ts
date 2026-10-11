@@ -1,9 +1,20 @@
 // Pure reducer: folds audit events into screen state. Every panel renders only this state.
 // The UI computes nothing itself except the running totals of llm_call events (section 16).
-import type { Agent, AuditEvent, BaselineStats, EquityPoint, Stats, VerdictEvent } from "./events";
+import type { Agent, AuditEvent, BacktestResultEvent, BaselineStats, EquityPoint, Stats, VerdictEvent } from "./events";
 
 export type AgentStatus = "idle" | "active" | "done" | "error";
 export const agentOrder: Agent[] = ["planner", "researcher", "mathematician", "naysayer", "reporter"];
+
+/** One follow-up card: the Naysayer's request, then the Mathematician's result merged in by id. */
+export interface Followup {
+  id: string;
+  reason: string;
+  title?: string;
+  result?: string;
+  downgrade?: boolean;
+  cause?: string | null;
+  skipped?: boolean;
+}
 
 export interface UiState {
   phase: "idle" | "running" | "done";
@@ -20,7 +31,7 @@ export interface UiState {
   equityValidation: EquityPoint[];
   equityRun: string | null;
   stats: { train: Stats; validation: Stats; baseline: BaselineStats } | null;
-  followups: { id: string; reason: string }[];
+  followups: Followup[];
   followupsRun: number;
   checks: { check: string; passed: boolean; value: unknown; note: string }[];
   recoveries: { failed: string; action: string; injected: boolean }[];
@@ -62,6 +73,23 @@ export const initialState: UiState = {
 let linkKey = 0;
 const link = (from: Agent, to: Agent) => ({ from, to, key: ++linkKey });
 
+/** Copy only the M2 result fields that are present and well typed; M1 event files have none of them. */
+function followupResult(p: BacktestResultEvent["payload"]): Partial<Followup> {
+  const out: Partial<Followup> = {};
+  if (typeof p.title === "string") out.title = p.title;
+  if (typeof p.result === "string") out.result = p.result;
+  if (typeof p.downgrade === "boolean") out.downgrade = p.downgrade;
+  if (typeof p.cause === "string" || p.cause === null) out.cause = p.cause;
+  if (p.skipped === true) out.skipped = true;
+  return out;
+}
+
+/** The verdict's applied downgrade for this follow-up, matched by cause; null if none was applied. */
+export function appliedDowngrade(f: Followup, verdict: UiState["verdict"]): VerdictEvent["payload"]["downgrades"][number] | null {
+  if (!f.downgrade || !f.cause || !verdict) return null;
+  return verdict.downgrades.find((d) => d.cause === f.cause) ?? null;
+}
+
 function summaryField(summary: unknown, field: string): string | null {
   if (summary && typeof summary === "object" && field in summary) {
     const v = (summary as Record<string, unknown>)[field];
@@ -91,10 +119,15 @@ export function reduce(prev: UiState, e: AuditEvent): UiState {
         completionTokens: m.completionTokens + e.payload.completion_tokens, costUsd: m.costUsd + e.payload.cost_usd } };
     }
     case "backtest_result": {
-      const isFollowup = /^F\d/.test(e.payload.run);
-      const next = { ...s, followupsRun: s.followupsRun + (isFollowup ? 1 : 0) };
-      if (e.payload.run !== "base") return next;
-      return { ...next, equityTrain: e.payload.equity_train, equityValidation: e.payload.equity_validation,
+      const run = e.payload.run;
+      if (/^F\d/.test(run)) {
+        const got = followupResult(e.payload);
+        const known = s.followups.some((f) => f.id === run);
+        return { ...s, followupsRun: s.followupsRun + 1,
+          followups: known ? s.followups.map((f) => (f.id === run ? { ...f, ...got } : f)) : [...s.followups, { id: run, reason: "", ...got }] };
+      }
+      if (run !== "base") return s;
+      return { ...s, equityTrain: e.payload.equity_train, equityValidation: e.payload.equity_validation,
         equityRun: e.payload.run, stats: { train: e.payload.train, validation: e.payload.validation, baseline: e.payload.baseline } };
     }
     case "check_result":
