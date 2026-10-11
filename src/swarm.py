@@ -12,6 +12,7 @@ the ticker, the date, or raw price levels.
     python -m src.swarm --split validation               # baseline run
     python -m src.swarm --split test --final-test        # the one test run, frozen config; never repeated
     python -m src.swarm --split test --final-test --resume   # only to finish that run if it stopped
+    python -m src.swarm --split test --post-hoc --setup AMZN:2026-07-30   # re-run one already-seen test setup (demo, not evidence)
 """
 import argparse
 import json
@@ -81,9 +82,10 @@ def decide(setup, market, llm, tracer):
 
 
 def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume=False, final_test=False,
-        setup=None):
+        setup=None, post_hoc=False):
     """Decide every setup in `split` (or only `setup`, a (ticker, date) pair), simulate approved
-    trades, write JSONL. Returns the records.
+    trades, write JSONL. Returns the records. post_hoc re-runs one test setup after the one test
+    run; its output is named posthoc and never replaces the test result.
 
     With workers > 1, setups are decided in parallel threads; lines are still written in
     setup order. With resume, setups already in out_path (or in out_path.tmp, left by an
@@ -92,9 +94,11 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume
     never destroys earlier results. The test split needs final_test: one full run, never
     a second one over an existing result.
     """
-    if split == "test" and not final_test:
+    if post_hoc and (final_test or not setup):
+        raise SystemExit("--post-hoc re-runs one already-seen setup: it needs --setup and not --final-test.")
+    if split == "test" and not (final_test or post_hoc):
         raise SystemExit("The swarm runs on the test split only once, with --final-test.")
-    name = "_".join([split, *setup]) if setup else split
+    name = "_".join([split, *(["posthoc"] if post_hoc else []), *setup]) if setup else split
     out_path = out_path or os.path.join("runs", "swarm_%s.jsonl" % name)
     tmp_path = out_path + ".tmp"
     if final_test:
@@ -213,6 +217,8 @@ def main(argv=None):
                         help="allow the one full run on --split test; refuses --limit, --setup and any existing test result")
     parser.add_argument("--setup", metavar="TICKER:DATE", type=lambda s: tuple(s.split(":")),
                         help="decide only this setup of --split, e.g. GOOGL:2026-05-29, and print its record")
+    parser.add_argument("--post-hoc", action="store_true",
+                        help="with --split test and --setup: re-run one setup already seen in the test run (a demo, not evidence)")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "claude"],
                         help="deepseek needs DEEPSEEK_API_KEY; claude needs ANTHROPIC_API_KEY")
     args = parser.parse_args(argv)
@@ -226,7 +232,7 @@ def main(argv=None):
     market = load_market()
     tracer = make_tracer(tags=("trading-swarm", "provider:" + args.provider))
     records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out,
-                  args.workers, args.resume, final_test=args.final_test, setup=args.setup)
+                  args.workers, args.resume, final_test=args.final_test, setup=args.setup, post_hoc=args.post_hoc)
     tracer.flush()
     if args.setup:
         print(json.dumps(records[0], indent=1))

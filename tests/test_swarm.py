@@ -323,6 +323,19 @@ def test_final_test_resume_decides_only_errors_and_missing_setups(cli):
     assert recs[1]["verdict"] == "approve" and recs[3]["verdict"] == "approve"
 
 
+def test_post_hoc_reruns_one_seen_test_setup_without_touching_results(cli):
+    m, llm = cli
+    date = m.setups["date"][2]
+    swarm.main(["--split", "test", "--post-hoc", "--setup", "AAA:" + date])
+    assert len(open(os.path.join("runs", "swarm_test_posthoc_AAA_%s.jsonl" % date)).read().splitlines()) == 1
+    assert [c["agent"] for c in llm.calls].count("researcher") == 1
+    assert not os.path.exists("results") and not os.path.exists(os.path.join("runs", "swarm_test.jsonl"))
+    with pytest.raises(SystemExit, match="needs --setup"):
+        swarm.main(["--split", "test", "--post-hoc"])
+    with pytest.raises(SystemExit, match="--post-hoc"):
+        swarm.main(["--split", "test", "--final-test", "--post-hoc", "--setup", "AAA:" + date])
+
+
 def test_setup_flag_decides_and_paper_trades_only_that_setup(monkeypatch, tmp_path, good_backtest, capsys):
     m = make_market({"AAA": [100.0] * 80, "BBB": [100.0] * 80},
                     [("AAA", 30, "validation", 1), ("BBB", 30, "validation", 0)])
