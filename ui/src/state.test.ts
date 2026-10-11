@@ -94,3 +94,12 @@ describe("reduce: tolerates a verdict payload with missing parts", () => {
     expect(s.verdict?.downgrades).toEqual([]);
   });
 });
+
+describe("reduce: provider of the run", () => {
+  it("keeps the provider from audit_started so fake-LLM runs can be labelled", () => {
+    const s = reduce(initialState, ev(1, { type: "audit_started", agent: null, payload: { idea: "x", trace_id: null, llm_budget: 8, fault: null, provider: "fake" } }));
+    expect(s.provider).toBe("fake");
+    const real = reduce(initialState, ev(1, { type: "audit_started", agent: null, payload: { idea: "x", trace_id: null, llm_budget: 8, fault: null } }));
+    expect(real.provider).toBeNull();
+  });
+});

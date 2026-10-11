@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import type { Verdict } from "../events";
 import { int, pct } from "../fmt";
 import type { UiState } from "../state";
-import { isSynthetic } from "../useAudit";
+import { runLabel } from "../useAudit";
 import { countUp } from "./countUp";
 
 const STAMP: Record<Verdict, { label: string; color: string }> = {
@@ -61,7 +61,7 @@ export function VerdictStamp({ state, reduced, reportUrl, traceUrl }: { state: U
       <div className="flex flex-col">
         <span className="font-sans text-5xl font-semibold tracking-[0.08em]" style={{ color: stamp.color }}>{stamp.label}</span>
         {SUBTITLE[v.verdict] && <span className="mt-1 max-w-md text-sm text-muted">{SUBTITLE[v.verdict]}</span>}
-        {isSynthetic(state.idea) && <span className="mt-1 font-mono text-[11px] tracking-[0.14em] text-kill">SYNTHETIC FIXTURE · NOT A REAL AUDIT</span>}
+        {runLabel(state.idea, state.provider) && <span className="mt-1 font-mono text-[11px] tracking-[0.14em] text-kill">{runLabel(state.idea, state.provider)}</span>}
       </div>
       <div className="flex min-w-0 flex-col gap-3">
         <p className="text-sm text-text">{v.reason}</p>

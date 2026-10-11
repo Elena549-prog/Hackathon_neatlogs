@@ -173,7 +173,7 @@ def test_fault_llm_empty_recovers(world, tmp_path):
     assert rec and rec[0]["payload"]["injected"] is True and "empty" in rec[0]["payload"]["failed"]
     assert "INJECTED" in Path(out["report_path"]).read_text()
     started = events_of(tmp_path)[0]["payload"]
-    assert started["fault"] == "llm_empty" and started["llm_budget"] == 8
+    assert started["fault"] == "llm_empty" and started["llm_budget"] == 8 and started["provider"] == "fake"
 
 
 def test_fault_dolthub_timeout_recovers(world, tmp_path):

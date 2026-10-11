@@ -8,6 +8,7 @@ export const agentOrder: Agent[] = ["planner", "researcher", "mathematician", "n
 export interface UiState {
   phase: "idle" | "running" | "done";
   idea: string;
+  provider: string | null;
   startedAt: string | null;
   traceId: string | null;
   whatTested: string | null;
@@ -34,6 +35,7 @@ export interface UiState {
 export const initialState: UiState = {
   phase: "idle",
   idea: "",
+  provider: null,
   startedAt: null,
   traceId: null,
   whatTested: null,
@@ -72,7 +74,7 @@ export function reduce(prev: UiState, e: AuditEvent): UiState {
   const s: UiState = { ...prev, lastSeq: e.seq, lastTs: e.ts };
   switch (e.type) {
     case "audit_started":
-      return { ...s, phase: "running", idea: e.payload.idea, startedAt: e.ts, traceId: e.payload.trace_id,
+      return { ...s, phase: "running", idea: e.payload.idea, provider: e.payload.provider ?? null, startedAt: e.ts, traceId: e.payload.trace_id,
         meters: { ...s.meters, budget: e.payload.llm_budget } };
     case "agent_started":
       return { ...s, phase: s.phase === "idle" ? "running" : s.phase,

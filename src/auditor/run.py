@@ -19,7 +19,7 @@ from . import agents, backtest, checks, report as report_mod, verdict as verdict
 from .data import build_features, coverage as coverage_of
 from .eventlog import EventLog
 from .plan import plan_hash, validate, what_tested
-from .universe import GROUPS, MARKET, SMALL_GROUPS
+from .universe import ALL, GROUPS, MARKET, SMALL_GROUPS
 
 LLM_BUDGET, NON_REPORTER_CAP = 8, 7
 STEPS = ("plan", "data", "backtest", "critique", "verdict", "report")
@@ -174,7 +174,7 @@ class Audit:
     def run(self):
         if "started" not in self.state.data:
             self.log.emit("audit_started", None, {"idea": self.idea, "trace_id": getattr(self.tracer, "trace_id", None),
-                                                  "llm_budget": LLM_BUDGET, "fault": self.fault})
+                                                  "llm_budget": LLM_BUDGET, "fault": self.fault, "provider": self.provider})
             self.state.data["started"] = _now()
             self.state.save()
         try:
@@ -270,9 +270,12 @@ class Audit:
             iv = None
             if straddle:
                 def get_iv():
-                    df = self.fetchers["iv"]([t for t in tickers if t in prices], self.cache_dir,
+                    # One fetch for all 50 tickers: DoltHub is queried per date window, so the cost is the same
+                    # whatever the group, and the cache then serves every later audit.
+                    df = self.fetchers["iv"](ALL, self.cache_dir,
                                              on_recovered=lambda f, a: self.recovered("researcher", f, a),
                                              fault_first_timeout=(self.fault == "dolthub_timeout"))
+                    df = df[df["ticker"].isin([t for t in tickers if t in prices])]
                     return df, "%d implied-vol rows" % len(df)
 
                 iv = tool("get_implied_vol", {"tickers": len(tickers)}, get_iv)
