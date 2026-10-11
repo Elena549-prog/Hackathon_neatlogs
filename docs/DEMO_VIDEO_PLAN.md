@@ -31,7 +31,7 @@ Re-record any clip with mission control running (`.venv/Scripts/python.exe -m uv
 | neatlogs trace, dips audit | Trace `66f9d2d4745323068e43c84d01c9bad1`: span tree (planner → researcher tools → mathematician → naysayer), LLM spans with tokens and cost ($0.0114 in total) | neatlogs dashboard, project "Zeeshan's project", workflow `trading-swarm`; open the trace, expand the naysayer span. 8–10 s screen recording |
 | neatlogs trace, AMZN decision | Trace `7b8501eaf5cdfa8d7918338e5a2e4cc0` (tag `naysayer-replay`): the live Naysayer v2 call | Same; optional, use if the dips trace is too busy |
 | Entire checkpoint | A checkpoint linked to a commit: the prompt and the code change side by side | Three commits on `main` carry `Entire-Checkpoint` trailers: `92918c8` (M2 follow-ups, `01M4NZCR05WYB8MK3KFWWA8GEH`), `679ce33` (brown theme, `01M4P4DWCS6Q3TCMMPZPK77MWS`), `3dd82ec` (UI readability, `01M4P725EADX0FTG0971SAX4CT`). The session data sits on the local branch `entire/67bdece-e3b0c4` only: `push_sessions` is false (kept off until the neatlogs key is rotated), so nothing is on Entire's side yet. Rotate the key, set `push_sessions` to true, push, then record `3dd82ec`'s checkpoint |
-| cfo.ai model | The per-audit sheet with the cost cell and margin | Build per `docs/CFO_AI.md`; set the cost per audit from the numbers sheet below first |
+| cfo.ai model | Summary page (Base vs Growth side by side), then the Assumptions page with the $0.0085 cost cell | Built (docs/CFO_AI.md). Record the Summary page, then change `LLM cost per audit` to 0.0351 on camera to show everything recalculate, and change it back |
 | Before/after card | The M1 vs M2 table | Made in the edit from `results/audits/before_after.md` (no capture needed) |
 
 Voiceover: record after the cut is locked, about 150 words per minute. No music is required; if wanted, a quiet bed under −20 dB.
@@ -85,7 +85,7 @@ Costs on the card are the wrapper's upper bound (peak, cache-miss prices). Say "
 | Before/after | table above | `results/audits/before_after.md` |
 | Cost per audit, neatlogs (actual) | $0.0114, $0.0056, $0.0085: mean **$0.0085** | neatlogs traces of the three after-audits |
 | Cost per audit, wrapper (upper bound) | mean **$0.0351** | `cost.usd` in each after-audit `state.json` |
-| cfo.ai cost cell | currently $0.048 (estimate) in `Assumptions!B5` | `docs/CFO_AI.md`; set it to $0.0085 (measured) or $0.0351 (upper bound) and say which |
+| cfo.ai cost cell | $0.0085 measured (Base: 94% gross margin per paid audit, month-12 cash $2,193; Growth: cash below zero in month 4, needs $47,346) | cfo.ai workspace "Zeeshan CFOAI", docs/CFO_AI.md |
 | AMZN decision | 39 of 1,263 past setups, hit rate 59.0%, cautious 43.4% vs 37.5% break-even; v1 block; v2 approve; long 283 at $235.50, stop $228.44, target $247.28; next close $271.58; +5.00% (+$3,332 on paper) | `results/posthoc_amzn_v1_naysayer.json`, `results/audits/trade-amzn-2026-07-30/events.jsonl` |
 | "trades it vetoed would have won more than they lost" | on validation, v1's blocks of gate-passing plans would have won 16 of 38 (42.1%, above 37.5%) | `results/README.md` |
 
@@ -94,7 +94,8 @@ Context the voiceover leaves out, for the write-up and Q&A: the AMZN setup is fr
 ## Checklist
 
 - [ ] Entire: push the session data for the three linked commits (`push_sessions` true after the key rotation)
-- [ ] cfo.ai: model built, cost cell set, sheet exported
+- [x] cfo.ai: model built natively, reconciled to the workbook, measured cost set
+- [ ] cfo.ai: share link for the submission (pages are private until then)
 - [ ] neatlogs: rotate the old API key (STATUS), then record the trace beat
 - [ ] Record the voiceover against the locked cut
 - [ ] Final check: every on-screen number matches the numbers sheet
