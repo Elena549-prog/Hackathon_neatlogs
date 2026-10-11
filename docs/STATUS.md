@@ -30,6 +30,17 @@ Follow `docs/AUDITOR_SPEC.md` section 17: milestones M0 to M3, then the freeze a
 7. Freeze at T-6h: demo video, posts, cfo.ai final, submission. No new features after the freeze.
 8. Stretch, only after M2 with at least 8 h left before the freeze: Laya triage and guardrail (spec section 15). Slip rule: if a milestone runs more than 2 h late, drop Laya, then live mode, then extra UI panels.
 
+### Strategy Auditor: fake-LLM runs on real data (2026-10-11, branch `m1-auditor`)
+
+Keyword planner, real Yahoo and DoltHub data, no model calls. Development evidence only; never record these.
+
+| Idea | Audit | Wall time | Verdict | Validation n | Note |
+|---|---|---|---|---|---|
+| buy dips in an uptrend | `runs/audits/fake-dips` | 36 s (first run downloads 52 price series and 50 earnings tables) | inconclusive: lower bound −0.31%, paired lower bound −0.62% | 282 | plan `stock_long` on `all_50`, `ret_5d < -0.03`, `close_to_ma200 > 1.0` |
+| sell straddles on low-volatility mega-caps | `runs/audits/fake-sell-straddles` | 28 min 52 s (190 sequential DoltHub windows, now cached in `data/cache/iv.csv`, 59,370 rows) | inconclusive: validation n < 30 | 20 | plan `straddle_sell` on `mega_cap`, `vol_20d < 0.012`; stricter-cost and tail-risk checks both fail |
+
+The implied-vol fetch is sequential; the spike script used 4 threads. Parallelising it would cut a cold run to a few minutes. Later audits reuse the cache.
+
 ## Running things
 
 - Python: `.venv/Scripts/python.exe` (3.12). Tests: `.venv/Scripts/python.exe -m pytest tests/ -q --basetemp=.pytest_tmp` (the `laya` test fails without the `laya` package; expected).
