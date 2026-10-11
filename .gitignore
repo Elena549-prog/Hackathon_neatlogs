@@ -9,3 +9,4 @@ __pycache__/
 *.jsonl
 .pytest_tmp/
 !results/**/*.jsonl
+.superpowers/
