@@ -12,12 +12,19 @@ Routes:
 Run: .venv/bin/python -m uvicorn src.auditor.server:app --port 8000
 """
 import asyncio
+import datetime as dt
 import json
+import secrets
+import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .replay import clamp_speed, find_audit_dir, read_event_lines, replay_delays
 
@@ -26,6 +33,59 @@ DEFAULT_ROOTS = [REPO / "runs" / "audits", REPO / "results" / "audits"]
 DEFAULT_UI_DIST = REPO / "ui" / "dist"
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 TERMINAL = {"verdict", "error"}
+
+
+LIVE_POLL_S = 0.2
+LIVE_GRACE_S = 5.0
+
+
+class IdeaBody(BaseModel):
+    idea: str
+
+
+class AuditRunner:
+    """Runs one auditor subprocess at a time and appends an `error` event if it exits without a verdict."""
+
+    def __init__(self, root, command=None):
+        self.root = Path(root)
+        self.command = command or (lambda aid, idea: [sys.executable, "-m", "src.auditor", "--id", aid, idea])
+        self._proc, self._audit_id, self._exited_at = None, None, None
+        self._lock = threading.Lock()
+
+    @property
+    def running(self):
+        return self._proc is not None and self._proc.poll() is None
+
+    def owns(self, audit_id):
+        return audit_id == self._audit_id
+
+    def exited_at(self, audit_id):
+        return self._exited_at if self.owns(audit_id) and not self.running else None
+
+    def start(self, idea):
+        with self._lock:
+            if self.running:
+                raise RuntimeError("an audit is already running")
+            audit_id = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(2)
+            self.root.mkdir(parents=True, exist_ok=True)
+            self._proc = subprocess.Popen(self.command(audit_id, idea), cwd=str(REPO))
+            self._audit_id, self._exited_at = audit_id, None
+            threading.Thread(target=self._watch, args=(self._proc, audit_id), daemon=True).start()
+            return audit_id
+
+    def _watch(self, proc, audit_id):
+        code = proc.wait()
+        path = self.root / audit_id / "events.jsonl"
+        events = [e for _, e in read_event_lines(path)] if path.is_file() else []
+        if not any(e.get("type") in TERMINAL for e in events):
+            seq = max((int(e.get("seq", 0)) for e in events), default=0) + 1
+            event = {"seq": seq, "ts": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+                     "audit_id": audit_id, "type": "error", "agent": None,
+                     "payload": {"step": "run", "message": "auditor exited with code %s without a verdict" % code}}
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(event) + "\n")
+        self._exited_at = time.time()
 
 
 def _sse(seq, line):
@@ -45,6 +105,7 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
     """Build the app. `roots` are searched in order for <audit_id>/events.jsonl; `sleep` paces replays."""
     roots = [Path(r) for r in (roots if roots is not None else DEFAULT_ROOTS)]
     ui_dist = Path(ui_dist) if ui_dist is not None else DEFAULT_UI_DIST
+    runner = runner or AuditRunner(roots[0])
     app = FastAPI(title="Strategy Auditor mission control")
 
     def audit_dir_or_404(audit_id):
@@ -52,6 +113,20 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
         if found is None:
             raise HTTPException(404, "unknown audit %r" % audit_id)
         return found
+
+    async def audit_dir_or_wait(audit_id):
+        """A just-started live audit may not have written its file yet: wait briefly for it."""
+        deadline = time.time() + 3.0
+        while runner.owns(audit_id) and find_audit_dir(audit_id, roots) is None and time.time() < deadline:
+            await asyncio.sleep(LIVE_POLL_S)
+        return audit_dir_or_404(audit_id)
+
+    @app.post("/api/audits")
+    def start_audit(body: IdeaBody):
+        try:
+            return {"audit_id": runner.start(body.idea)}
+        except RuntimeError as e:
+            raise HTTPException(409, str(e))
 
     @app.get("/api/audits")
     def list_audits():
@@ -72,7 +147,7 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
     @app.get("/api/audits/{audit_id}/events")
     async def events(audit_id: str, request: Request, replay: str | None = None,
                      speed: str | None = None, from_seq: str | None = Query(None, alias="from")):
-        audit_dir = audit_dir_or_404(audit_id)
+        audit_dir = await audit_dir_or_wait(audit_id)
         raw_from = from_seq if from_seq is not None else request.headers.get("last-event-id")
         try:
             after = int(raw_from) if raw_from is not None else 0
@@ -81,7 +156,7 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
         if replay in ("1", "true", "yes"):
             gen = _replay(audit_dir / "events.jsonl", clamp_speed(speed), after)
         else:
-            raise HTTPException(501, "live mode is not built yet")
+            gen = _live(audit_dir / "events.jsonl", audit_id, after)
         return StreamingResponse(gen, media_type="text/event-stream", headers=SSE_HEADERS)
 
     async def _replay(path, speed, after):
@@ -94,6 +169,27 @@ def create_app(roots=None, ui_dist=None, runner=None, sleep=asyncio.sleep):
                 await sleep(delay)
             yield _sse(event.get("seq"), line)
         yield "event: end\ndata: {}\n\n"
+
+    async def _live(path, audit_id, after):
+        """Tail the file: complete lines only; end after error, after verdict + report_ready, or 5 s after exit."""
+        seen_verdict = False
+        while True:
+            for line, event in read_event_lines(path) if path.is_file() else []:
+                seq = int(event.get("seq", 0))
+                if seq <= after:
+                    continue
+                after = seq
+                yield _sse(seq, line)
+                kind = event.get("type")
+                seen_verdict = seen_verdict or kind == "verdict"
+                if kind == "error" or (kind == "report_ready" and seen_verdict):
+                    yield "event: end\ndata: {}\n\n"
+                    return
+            exited = runner.exited_at(audit_id)
+            if exited is not None and time.time() - exited > LIVE_GRACE_S:
+                yield "event: end\ndata: {}\n\n"
+                return
+            await asyncio.sleep(LIVE_POLL_S)
 
     @app.get("/api/audits/{audit_id}/report")
     def report(audit_id: str):
