@@ -1,6 +1,7 @@
 import { useReducedMotion } from "framer-motion";
 import { AgentGraph } from "./components/AgentGraph";
 import { CommandBar } from "./components/CommandBar";
+import { EquityCurves } from "./components/EquityCurves";
 import { Panel } from "./components/Panel";
 import { ReplayControls } from "./components/ReplayControls";
 import { useAudit } from "./useAudit";
@@ -36,8 +37,8 @@ export default function App() {
         <Panel title="Agents" right={state.lastAgent && <span className="font-mono text-[11px] text-muted">{state.lastAgent}</span>}>
           <AgentGraph state={state} reduced={reduced} />
         </Panel>
-        <Panel title="Evidence">
-          <p className="text-sm text-muted">equity curves (Task 8)</p>
+        <Panel title="Evidence" right={state.equityRun && <span className="font-mono text-[11px] text-muted">run: {state.equityRun}</span>}>
+          <EquityCurves state={state} reduced={reduced} />
         </Panel>
       </div>
       <Panel title="Verdict">
