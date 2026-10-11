@@ -1,4 +1,5 @@
 import { useReducedMotion } from "framer-motion";
+import { AgentGraph } from "./components/AgentGraph";
 import { CommandBar } from "./components/CommandBar";
 import { Panel } from "./components/Panel";
 import { ReplayControls } from "./components/ReplayControls";
@@ -10,8 +11,8 @@ export const DEMO_IDEAS = ["buy dips in an uptrend", "buy straddles on tech befo
 export default function App() {
   const a = useAudit();
   const reduced = useReducedMotion() ?? false;
-  const canResume = !!a.currentAuditId && a.state.phase !== "done";
-  void reduced;
+  const state = a.state;
+  const canResume = !!a.currentAuditId && state.phase !== "done";
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto_auto] gap-3 p-4">
@@ -32,8 +33,8 @@ export default function App() {
         }
       />
       <div className="grid min-h-0 grid-cols-[5fr_7fr] gap-3">
-        <Panel title="Agents">
-          <p className="text-sm text-muted">agent graph (Task 7)</p>
+        <Panel title="Agents" right={state.lastAgent && <span className="font-mono text-[11px] text-muted">{state.lastAgent}</span>}>
+          <AgentGraph state={state} reduced={reduced} />
         </Panel>
         <Panel title="Evidence">
           <p className="text-sm text-muted">equity curves (Task 8)</p>
