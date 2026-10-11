@@ -85,3 +85,57 @@ def make_fake_llm(tracer):
             return out
 
     return llm
+
+
+# ----------------------------------------------------------------------------- client-level fakes and faults
+
+class FakeAuditorClient:
+    """Stands in for OpenAI(base_url=DeepSeek) for the auditor's roles, so src.llm.make_llm's retry path is
+    exercised for real. `queued` maps a role (planner/naysayer/reporter) to reply texts sent before the default."""
+
+    def __init__(self, queued=None):
+        from types import SimpleNamespace
+        self.queued = {k: list(v) for k, v in (queued or {}).items()}
+        self.requests = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    @staticmethod
+    def _role(system):
+        for role in ("planner", "naysayer", "reporter"):
+            if "You are the %s" % role.capitalize() in system:
+                return role
+        raise ValueError("unknown role in system prompt")
+
+    def _create(self, **kwargs):
+        from types import SimpleNamespace
+        self.requests.append(kwargs)
+        system, user = kwargs["messages"][0]["content"], kwargs["messages"][1]["content"]
+        role = self._role(system)
+        queue = self.queued.get(role)
+        if queue:
+            text = queue.pop(0)
+        elif role == "planner":
+            text = json.dumps(plan_from_idea(json.loads(user).get("idea", "")))
+        elif role == "naysayer":
+            text = json.dumps({"critique": "%s: see the coded checks." % FAKE_PREFIX, "doubts": ["%s: one window" % FAKE_PREFIX]})
+        else:
+            text = json.dumps({"prose": "%s: template explanation." % FAKE_PREFIX})
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text), finish_reason="stop")],
+                               usage=SimpleNamespace(prompt_tokens=TOKENS_IN, completion_tokens=TOKENS_OUT))
+
+
+class EmptyFirstReply:
+    """Wraps a real OpenAI-style client so the first reply's content is empty (`--fault llm_empty`, section 6).
+    The wrapper's own retry in src.llm then recovers; the audit labels that recovery INJECTED."""
+
+    def __init__(self, client):
+        from types import SimpleNamespace
+        self._client, self._fired = client, False
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, **kwargs):
+        resp = self._client.chat.completions.create(**kwargs)
+        if not self._fired:
+            self._fired = True
+            resp.choices[0].message.content = ""
+        return resp
