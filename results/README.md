@@ -53,6 +53,22 @@ The test split (231 setups, 2026-07-01 to 2026-09-15, after the LLM cutoff) is r
 .venv/Scripts/python.exe -m src.swarm --split test --final-test --workers 8
 ```
 
+## Test result (run once, 2026-10-12)
+
+Files: `swarm_test_summary.md`, `swarm_test.jsonl` (231 lines, 0 errors). LLM cost $0.60.
+
+| | Count |
+|---|---|
+| Setups | 231 |
+| Skipped by the watcher (no LLM call) | 207 |
+| Woken | 24 |
+| Approved (paper trades) | **0** |
+| Dropped: cautious hit rate at or below the 37.5% break-even | 19 |
+| Dropped: fewer than 30 comparable past setups | 3 |
+| Dropped: Naysayer LLM blocked | 2 (AMZN 2026-08-28 passed the gate by 1.05 points, label 0; AMZN 2026-07-30, label 1) |
+
+**Reading.** The swarm made no trades on the test window. Unlike validation, this window had an edge for the fixed bet: approving every woken setup gives 41.7% precision (every setup: 40.7%), above the 37.5% break-even, about +0.3% per trade from the labels; buy-and-hold over the split was +9.6%. The gate's cautious lower bound was too strict to take that small edge, so on the test window the swarm was safe but not useful. Directional only (0 approvals, far below 50). Nothing was changed after this result.
+
 ## Traces
 
 Every setup is one neatlogs trace in the `trading-swarm` workflow: a WORKFLOW span `swarm`, with AGENT and TOOL spans (researcher, planner, mathematician, naysayer, get_prices, backtest) tagged `agent`, `round`, `ticker`, `date`, and neatlogs' own LLM spans nested under each agent.
