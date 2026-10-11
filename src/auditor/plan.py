@@ -87,12 +87,22 @@ LLM_SCHEMA = {
         "not_tested": {"type": "array", "items": {"type": "string"}},
         "core_trigger_tested": {"type": "boolean"},
     },
-    "required": list(PLAN_KEYS),
+    "required": ["refuse"],     # src/llm.py checks this; validate() checks the rest, with one fix round
 }
 
 
 def _is_number(x):
     return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def refusal_of(raw):
+    """A refused plan from the reply, ignoring every other field, or None if the idea isn't refused."""
+    refuse = raw.get("refuse") if isinstance(raw, dict) else None
+    if isinstance(refuse, dict) and refuse.get("is_refused") is True:
+        plan = {k: None for k in PLAN_KEYS}
+        plan["refuse"] = {"is_refused": True, "reason": refuse.get("reason")}
+        return plan
+    return None
 
 
 def to_map(raw):
@@ -131,6 +141,9 @@ def validate(plan):
         if not isinstance(refuse.get("reason"), str) or not refuse["reason"].strip():
             return "a refusal needs a reason"
         return None
+    missing = [k for k in PLAN_KEYS if plan.get(k) is None and not (k == "exit" and plan.get("family") in STRADDLES)]
+    if missing:
+        return "missing fields: %s" % ", ".join(missing)
     family = plan.get("family")
     if family not in FAMILIES:
         return "family must be one of %s" % ", ".join(FAMILIES)

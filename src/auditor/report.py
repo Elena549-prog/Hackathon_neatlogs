@@ -72,8 +72,12 @@ def render(state, earnings_caveat):
                 "- Thin price history (fewer than 240 rows in some year 2015-2025): %s" % (", ".join(cov.get("gaps") or []) or "none"),
                 "- Train setups dropped because their horizon ends in 2026: %d" % drops.get("train_exit_in_2026", 0),
                 "- Validation setups dropped because their exit is past the data: %d" % drops.get("validation_exit_past_data", 0)]
+        f1 = next((f for f in state.get("followups", []) if f["id"] == "F1" and f.get("result")), None)
+        if f1:
+            out += ["- Trades left out of F1 for missing earnings coverage: %d"
+                    % f1["result"].get("trades_left_out_no_coverage", 0)]
         if plan["family"] in STRADDLES:
-            out += ["- Straddle trades skipped for implied vol older than 5 days: %d" % drops.get("stale_iv", 0),
+            out += ["- Straddle trades skipped for implied vol older than 5 days (or missing): %d" % drops.get("stale_iv", 0),
                     "- Straddle trades priced without earnings coverage: %d" % drops.get("earnings_unknown_cost", 0)]
         out += [""]
 

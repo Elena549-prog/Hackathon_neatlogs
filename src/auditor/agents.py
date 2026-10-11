@@ -29,7 +29,7 @@ PLANNER_SYSTEM = (
     "State every interpretation in assumptions (e.g. \"'uptrend' read as close above its 200-day average\"). "
     "List in not_tested every part of the idea you could not express (e.g. news sentiment). Set "
     "core_trigger_tested to false if the part of the idea that triggers a trade cannot be expressed with "
-    "these features. Write hypothesis as one sentence. " + DISCLAIMER
+    "these features. Write hypothesis as one sentence. Always include every field of the schema. " + DISCLAIMER
 )
 
 

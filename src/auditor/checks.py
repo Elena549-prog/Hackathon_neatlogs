@@ -177,10 +177,11 @@ def run_followup(fid, panel, plan, base_trades, base_stats, backtest_run):
         trades, drops = backtest_run(panel, plan, exclude_earnings=True)
         s = stats(trades, panel.calendar)
         m = s["validation"]["mean"]
-        return {"id": fid, "result": {"validation": s["validation"],
-                                      "tickers_without_coverage": drops["f1_no_earnings_coverage"]},
+        left_out = drops["f1_no_earnings_coverage"]
+        return {"id": fid, "result": {"validation": s["validation"], "trades_left_out_no_coverage": left_out},
                 "downgrade": m is None or m <= 0,
-                "note": "validation mean without earnings windows: %s" % _pct(m)}
+                "note": "validation mean without earnings windows: %s (%d trades left out for missing earnings "
+                        "coverage)" % (_pct(m), left_out)}
     if fid == "F2":
         train = base_trades[base_trades["split"] == "train"] if len(base_trades) else base_trades
         if not len(train) or val_mean is None:

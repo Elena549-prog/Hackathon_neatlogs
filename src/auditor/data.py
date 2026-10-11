@@ -11,6 +11,7 @@ Sources:
 Network calls go through a Fetchers object so tests can replace them. Prices after 2026-06-30
 are only used for validation exits; no setup is ever built after the validation window.
 """
+import http.client
 import json
 import math
 import os
@@ -33,6 +34,12 @@ IV_WINDOW_DAYS = 14
 MARKET = ("SPY", "^VIX")
 CACHE_DIR = os.path.join("data", "cache")
 DOLTHUB_API = "https://www.dolthub.com/api/v1alpha1/post-no-preference/options/master?q="
+
+
+def ns(index):
+    """Dates at nanosecond precision: pandas 3 keeps yfinance (s) and CSV (us) units apart, and
+    merge_asof refuses to join different units."""
+    return pd.DatetimeIndex(index).as_unit("ns")
 
 
 class DataError(Exception):
@@ -59,7 +66,10 @@ class Fetchers:
             except KeyError:
                 continue
             if len(df):
-                df.index = pd.to_datetime(df.index).tz_localize(None).normalize()
+                idx = pd.to_datetime(df.index)
+                if idx.tz is not None:
+                    idx = idx.tz_localize(None)
+                df.index = ns(idx.normalize())
                 df.index.name = "Date"
                 out[t] = df
         return out
@@ -69,8 +79,8 @@ class Fetchers:
         try:
             with urllib.request.urlopen(DOLTHUB_API + urllib.parse.quote(sql), timeout=timeout) as r:
                 d = json.load(r)
-        except (TimeoutError, OSError) as e:
-            raise TimeoutError(str(e)) from e
+        except (TimeoutError, OSError, ValueError, http.client.HTTPException) as e:
+            raise TimeoutError("%s: %s" % (type(e).__name__, e)) from e
         status = d.get("query_execution_status")
         if status == "RowLimit":
             raise RuntimeError("row limit")
@@ -83,10 +93,21 @@ class Fetchers:
         df = yf.Ticker(ticker).get_earnings_dates(limit=60)
         if df is None or not len(df):
             return []
-        idx = pd.to_datetime(df.index)
-        if idx.tz is not None:
-            idx = idx.tz_localize(None)
-        return sorted({d.date().isoformat() for d in idx})
+        return report_dates(pd.to_datetime(df.index))
+
+
+def report_dates(idx):
+    """Trading day on which each report first moves the stock: a report at or after 16:00 New York
+    time (after the close) counts from the next business day."""
+    if idx.tz is not None:
+        idx = idx.tz_convert("America/New_York")
+    out = set()
+    for d in idx:
+        day = d.normalize().tz_localize(None) if d.tzinfo else d.normalize()
+        if d.hour >= 16:
+            day = day + pd.offsets.BDay(1)
+        out.add(day.date().isoformat())
+    return sorted(out)
 
 
 # ------------------------------------------------------------------------------------- prices
@@ -107,6 +128,7 @@ def load_prices(tickers, fetch, cache_dir=CACHE_DIR, log=None):
         path = _price_path(cache_dir, t)
         if os.path.exists(path):
             df = pd.read_csv(path, index_col="Date", parse_dates=["Date"])
+            df.index = ns(df.index)
             if _covers(df):
                 out[t] = df
                 continue
@@ -125,15 +147,27 @@ def load_prices(tickers, fetch, cache_dir=CACHE_DIR, log=None):
 
 # --------------------------------------------------------------------------------- implied vol
 
+def _queried(cache_dir, name):
+    """Tickers a cache file was built from: a sidecar list for ours; the spike queried all 50."""
+    if name == "iv_50.csv":
+        return set(GROUPS["all_50"])
+    path = os.path.join(cache_dir, "iv_auditor_tickers.json")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as f:
+        return set(json.load(f))
+
+
 def _iv_cache(cache_dir, tickers):
-    """The first cache file that covers every ticker over the implied-vol window, else None."""
+    """The first cache file built from a query covering every ticker over the window, else None.
+    A ticker DoltHub returned nothing for still counts as covered (its trades are skipped as stale)."""
     for name in ("iv_auditor.csv", "iv_50.csv"):
         path = os.path.join(cache_dir, name)
-        if not os.path.exists(path):
+        if not os.path.exists(path) or not set(tickers) <= _queried(cache_dir, name):
             continue
         iv = pd.read_csv(path, parse_dates=["date"])
-        have = set(iv["ticker"])
-        if set(tickers) <= have and iv["date"].min() <= pd.Timestamp(IV_START) + pd.Timedelta(days=10) \
+        iv["date"] = iv["date"].astype("datetime64[ns]")
+        if len(iv) and iv["date"].min() <= pd.Timestamp(IV_START) + pd.Timedelta(days=10) \
                 and iv["date"].max() >= pd.Timestamp(IV_END) - pd.Timedelta(days=10):
             return iv[iv["ticker"].isin(tickers)]
     return None
@@ -148,16 +182,17 @@ def fetch_iv_window(fetch, tickers, a, b, sleep=time.sleep, retries=3, on_recove
     syms = ",".join("'%s'" % t.replace("-", ".") for t in tickers)
     sql = ("SELECT date, act_symbol, iv_current, hv_current FROM volatility_history WHERE date BETWEEN "
            "'%s' AND '%s' AND act_symbol IN (%s)" % (a.date(), b.date(), syms))
-    failed = None
+    failed, injected = None, False
     for attempt in range(retries):
         try:
             if fault and fault[0] == "dolthub_timeout":
                 fault[0] = None
+                injected = True
                 raise TimeoutError("injected DoltHub timeout")
             rows = fetch.dolthub(sql)
             if failed and on_recovered:
                 on_recovered("DoltHub query %s..%s: %s" % (a.date(), b.date(), failed),
-                             "retried after backoff", "injected" in failed)
+                             "retried after backoff", injected)
             return rows
         except RuntimeError:           # row limit: only a smaller window helps
             failed = "row limit"
@@ -174,7 +209,7 @@ def fetch_iv_window(fetch, tickers, a, b, sleep=time.sleep, retries=3, on_recove
         on_recovered("DoltHub query %s..%s: %s" % (a.date(), b.date(), failed),
                      "halved the window to %s..%s and %s..%s" % (a.date(), mid.date(),
                                                                   (mid + pd.Timedelta(days=1)).date(), b.date()),
-                     "injected" in (failed or ""))
+                     injected)
     return left + right
 
 
@@ -207,13 +242,15 @@ def load_iv(tickers, fetch, cache_dir=CACHE_DIR, log=None, on_recovered=None, fa
         iv = pd.concat([iv, recent]).drop_duplicates(["date", "ticker"])
     os.makedirs(cache_dir, exist_ok=True)
     iv.to_csv(os.path.join(cache_dir, "iv_auditor.csv"), index=False)
+    with open(os.path.join(cache_dir, "iv_auditor_tickers.json"), "w", encoding="utf-8") as f:
+        json.dump(sorted(tickers), f)
     return iv
 
 
 def _iv_frame(rows):
     iv = pd.DataFrame(rows, columns=["date", "act_symbol", "iv_current", "hv_current"])
     iv["ticker"] = iv.pop("act_symbol").str.replace(".", "-", regex=False)
-    iv["date"] = pd.to_datetime(iv["date"])
+    iv["date"] = pd.to_datetime(iv["date"]).astype("datetime64[ns]")
     for c in ("iv_current", "hv_current"):
         iv[c] = pd.to_numeric(iv[c], errors="coerce")
     return iv
@@ -232,14 +269,19 @@ def load_earnings(tickers, fetch, cache_dir=CACHE_DIR, log=None):
     if missing:
         if log:
             log("tool_called", "researcher", tool="get_earnings_dates", args={"tickers": len(missing)})
+        fresh = {}
         for t in missing:
             try:
-                cache[t] = fetch.earnings(t)
-            except Exception:            # no coverage for this ticker; reported, F1 leaves it out
-                cache[t] = []
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(cache, f, indent=1, sort_keys=True)
+                fresh[t] = fetch.earnings(t)
+            except Exception:            # no coverage this time; reported, F1 leaves it out, retried next audit
+                fresh[t] = []
+        keep = {t: d for t, d in fresh.items() if d}          # only real dates are cached
+        if keep:
+            cache.update(keep)
+            os.makedirs(cache_dir, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(cache, f, indent=1, sort_keys=True)
+        return {t: cache.get(t) or fresh.get(t, []) for t in tickers}
     return {t: cache.get(t, []) for t in tickers}
 
 
@@ -278,6 +320,8 @@ def market_features(spy, vix):
 def iv_features(dates, iv_rows, vol_20d):
     """Latest implied-vol row on or before each date; NaN (and stale=True) if older than 5 days."""
     rows = iv_rows.dropna(subset=["iv_current"]).sort_values("date")
+    rows = rows.assign(date=rows["date"].astype("datetime64[ns]"))
+    dates = ns(dates)
     left = pd.DataFrame({"date": dates})
     if len(rows):
         m = pd.merge_asof(left, rows[["date", "iv_current", "hv_current"]].assign(iv_date=rows["date"]),

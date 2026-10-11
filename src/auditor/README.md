@@ -4,7 +4,7 @@ Built from `docs/AUDITOR_SPEC.md` (revision 2) on branch `auditor`. Covers miles
 
 ## Status
 
-- **Tested with fakes only.** 200 tests pass (`python -m pytest tests/ -q`), including the spec section 12 list, on synthetic prices and fake LLMs. It has **not** run against Yahoo, DoltHub or DeepSeek yet: the workspace it was built in can't reach them. The first real run is the real test.
+- **Tested with fakes only.** 213 tests pass (`python -m pytest tests/ -q`), including the spec section 12 list, on synthetic prices and fake LLMs. It has **not** run against Yahoo, DoltHub or DeepSeek yet: the workspace it was built in can't reach them. The first real run is the real test.
 - Keys: `DEEPSEEK_API_KEY` (or `ANTHROPIC_API_KEY` with `--provider claude`), `NEATLOGS_API_KEY`. Load `.env` as in `docs/STATUS.md`.
 
 ## Commands
@@ -33,7 +33,7 @@ Outputs: `runs/audits/<id>/` (`events.jsonl`, `state.json`, `report.md`), the re
 ## Things to check on the first real run
 
 1. yfinance column layout for a multi-ticker download (`Fetchers.prices`): every ticker should have Open/High/Low/Close/Adj Close/Volume.
-2. `get_earnings_dates(limit=60)` coverage: the report lists each ticker's earliest earnings date. Tickers without dates are left out of F1 and priced without the earnings factor (counted in the report).
+2. `get_earnings_dates(limit=60)` coverage: the report lists each ticker's earliest earnings date. Tickers without dates are left out of F1 and priced without the earnings factor (both counted in the report). A failed fetch is not cached, so it is retried on the next audit.
 3. The neatlogs trace: one WORKFLOW span `audit` per audit with AGENT and TOOL spans tagged `audit_id`, `step`, `followup`; `trace_id` in the `audit_started` and `report_ready` events (format of the trace URL still to verify, spec section 10).
 4. Cost per audit from the report's "Cost of this audit" section, for the cfo.ai model.
 
@@ -41,8 +41,13 @@ Outputs: `runs/audits/<id>/` (`events.jsonl`, `state.json`, `report.md`), the re
 
 - **Which setups exist** is decided by the horizon end, not the actual exit (train setups dropped when the horizon ends in 2026; validation setups dropped when it runs past the data). The actual exit can be earlier; using it would make the setup set depend on the outcome.
 - **One open trade per ticker:** a new entry is taken on a day strictly after the previous trade's exit day.
+- **Earnings dates** use the trading day a report first moves the stock: a report at or after 16:00 New York time counts from the next business day (so an after-close report on the setup day falls inside the trade).
 - **Earnings features** are NaN before a ticker's earliest known report date and for tickers with no coverage; a missing feature never matches a condition.
 - **SPY and ^VIX features** use Adj Close, as in the spike scripts.
 - **Random-selection baseline** draws each setup with probability (v0 trades / baseline trades), then applies the same one-trade-per-ticker rule. Reported only.
 - **`--fault dolthub_timeout`** fires on the first DoltHub fetch even when the implied vol is cached, so the recovery always shows. It only applies to straddle ideas; for `stock_long` a note says it wasn't triggered.
 - **Coded checks** are emitted as `check_result` events with agent `naysayer` (they are the Naysayer's coded checks in the spec).
+
+## Independent review (2026-10-11)
+
+A separate review against the spec found 8 bugs, all fixed with regression tests in `tests/test_auditor_review_fixes.py`. The most important: the first straddle audit on a fresh machine would have crashed (pandas 3 refuses to join yfinance's second-precision dates with DoltHub/CSV dates). Others: earnings failures cached as permanent no-coverage, implied vol refetched forever when DoltHub lacks a ticker, inflated drop counts, F1's missing-coverage count, NaN/inf in event JSON, malformed DoltHub replies not retried, and an injected fault mislabeled REAL.

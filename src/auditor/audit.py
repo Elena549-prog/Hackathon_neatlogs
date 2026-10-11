@@ -19,8 +19,8 @@ import pandas as pd
 
 from src.auditor import agents, backtest, checks, report, verdict as rules
 from src.auditor.data import VALID_END, VALID_START, build_panel
-from src.auditor.plan import (STRADDLES, THIN_GROUPS, canonical, normalize, plan_hash, to_map, uses_earnings,
-                              validate, what_was_tested)
+from src.auditor.plan import (STRADDLES, THIN_GROUPS, canonical, normalize, plan_hash, refusal_of, to_map,
+                              uses_earnings, validate, what_was_tested)
 
 LLM_BUDGET = 8
 NONREPORTER_CAP = LLM_BUDGET - 1
@@ -44,15 +44,18 @@ def new_id():
 
 
 def _jsonable(x):
+    """Plain JSON values: numpy scalars unwrapped, dates as ISO text, NaN and +-inf as null."""
     if isinstance(x, dict):
         return {str(k): _jsonable(v) for k, v in x.items()}
     if isinstance(x, (list, tuple)):
         return [_jsonable(v) for v in x]
-    if hasattr(x, "item"):
-        return x.item()
     if isinstance(x, (pd.Timestamp, dt.date)):
-        return x.isoformat()
-    if isinstance(x, float) and x != x:
+        return None if pd.isna(x) else x.isoformat()
+    if x is pd.NaT:
+        return None
+    if hasattr(x, "item"):
+        x = x.item()
+    if isinstance(x, float) and (x != x or x in (float("inf"), float("-inf"))):
         return None
     return x
 
@@ -89,7 +92,7 @@ class Audit:
     def save(self):
         tmp = self.state_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(_jsonable(self.state), f, indent=1)
+            json.dump(_jsonable(self.state), f, indent=1, allow_nan=False)
         os.replace(tmp, self.state_path)
 
     def emit(self, type_, agent=None, **payload):
@@ -97,7 +100,7 @@ class Audit:
               "payload": _jsonable(payload)}
         self.state["seq"] += 1
         with open(os.path.join(self.dir, "events.jsonl"), "a", encoding="utf-8") as f:
-            f.write(json.dumps(ev) + "\n")
+            f.write(json.dumps(ev, allow_nan=False) + "\n")
         self.save()
         return ev
 
@@ -195,7 +198,8 @@ class Audit:
                 try:
                     raw = self.call("planner", agents.PLANNER_SYSTEM, agents.planner_prompt(idea, fix),
                                     agents.planner_schema(), "plan")
-                    plan = to_map(raw)
+                    refusal = refusal_of(raw)
+                    plan = refusal if refusal else to_map(raw)
                     error = validate(plan)
                 except BudgetExceeded:
                     raise
@@ -442,6 +446,10 @@ class Audit:
         return sum(1 for l in lines if l.get("verdict") != "cannot_audit" and l.get("audit_id") != self.id)
 
     def _append_registry(self):
+        if os.path.exists(self.registry):
+            with open(self.registry, encoding="utf-8") as f:
+                if any(json.loads(l).get("audit_id") == self.id for l in f if l.strip()):
+                    return
         plan = self.state["plan_v0"] or {}
         line = {"date": now(), "audit_id": self.id, "idea": self.state["idea"], "family": plan.get("family"),
                 "universe_group": plan.get("universe_group"), "plan_hash": self.state["plan_hash"],

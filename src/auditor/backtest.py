@@ -100,9 +100,7 @@ def run(panel, plan, horizon=None, cost_bump=0.0, conditions=None, exclude_earni
         if ticker in exclude_tickers:
             continue
         reports = [pd.Timestamp(d) for d in panel.earnings.get(ticker) or []]
-        if exclude_earnings and not reports:
-            drops["f1_no_earnings_coverage"] += 1
-            continue
+        leave_out = exclude_earnings and not reports      # F1: no coverage -> its trades are counted, not used
         dates = f.index
         n = len(dates)
         in_train = (dates >= train_start) & (dates <= train_end)
@@ -124,15 +122,15 @@ def run(panel, plan, horizon=None, cost_bump=0.0, conditions=None, exclude_earni
         last_exit = -1
         for i in cand:
             end_i = i + H
+            if not ok[i] or i <= last_exit:
+                continue
             if in_train[i] and (end_i >= n or dates[end_i] >= valid_start):
                 drops["train_exit_in_2026"] += 1
                 continue
             if in_valid[i] and end_i >= n:
                 drops["validation_exit_past_data"] += 1
                 continue
-            if not ok[i] or i <= last_exit:
-                continue
-            if exclude_earnings and _earnings_between(reports, dates[i], dates[end_i]):
+            if exclude_earnings and not leave_out and _earnings_between(reports, dates[i], dates[end_i]):
                 continue
             split = "train" if in_train[i] else "validation"
             if family == "stock_long":
@@ -141,7 +139,7 @@ def run(panel, plan, horizon=None, cost_bump=0.0, conditions=None, exclude_earni
                 j, price = stock_exit(o, h, l, adj, i, H, entry * (1 - ex["stop_pct"]), entry * (1 + ex["target_pct"]))
                 rec = {"ret": price / entry - 1, "premium": np.nan, "payoff": np.nan, "earnings_in_window": np.nan}
             else:
-                if stale[i] or math.isnan(iv[i]):
+                if stale[i] or math.isnan(iv[i]) or iv[i] <= 0:
                     drops["stale_iv"] += 1
                     continue
                 j = end_i
@@ -153,6 +151,9 @@ def run(panel, plan, horizon=None, cost_bump=0.0, conditions=None, exclude_earni
                 rec = {"ret": ret, "premium": prem, "payoff": payoff, "earnings_in_window": e,
                        "iv_date": iv_dates.iloc[i]}
             last_exit = j
+            if leave_out:
+                drops["f1_no_earnings_coverage"] += 1
+                continue
             rows.append({"ticker": ticker, "date": dates[i], "exit_date": dates[j], "split": split, **rec})
     trades = pd.DataFrame(rows, columns=["ticker", "date", "exit_date", "split", "ret", "premium",
                                          "payoff", "earnings_in_window", "iv_date"])
