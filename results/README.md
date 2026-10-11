@@ -69,6 +69,19 @@ Files: `swarm_test_summary.md`, `swarm_test.jsonl` (231 lines, 0 errors). LLM co
 
 **Reading.** The swarm made no trades on the test window. Unlike validation, this window had an edge for the fixed bet: approving every woken setup gives 41.7% precision (every setup: 40.7%), above the 37.5% break-even, about +0.3% per trade from the labels; buy-and-hold over the split was +9.6%. The gate's cautious lower bound was too strict to take that small edge, so on the test window the swarm was safe but not useful. Directional only (0 approvals, far below 50). Nothing was changed after this result.
 
+## Current config on validation (run 2026-10-12, after the test run)
+
+Files: `swarm_validation_current_summary.md`, `swarm_validation_current.jsonl`. Same frozen config as the test run, on the full validation split (it had only ever run there on 30 setups). LLM cost $2.87.
+
+| | Validation | Test (above) |
+|---|---|---|
+| Woken by the watcher | 98 of 577 | 24 of 231 |
+| Approved | 0 | 0 |
+| Approve every woken setup: precision | 43.9% | 41.7% |
+| Naysayer blocked a plan that passed the gate | 6 (3 label 1, 3 label 0) | 2 (1 label 1, 1 label 0) |
+
+**Reading.** The swarm has approved one trade in all runs to date (old config, GOOGL 2026-05-29, −3%). The watcher alone (1.5 x 20-day vol, set on train for cost) selected setups above the 37.5% break-even in both windows, but neither sample is large enough to call that an edge (n 98 and 24). The gate plus the Naysayer declined all of them. Run after the test result, so it is evidence about the config, not a basis for changing it and re-testing on the same data.
+
 ## Traces
 
 Every setup is one neatlogs trace in the `trading-swarm` workflow: a WORKFLOW span `swarm`, with AGENT and TOOL spans (researcher, planner, mathematician, naysayer, get_prices, backtest) tagged `agent`, `round`, `ticker`, `date`, and neatlogs' own LLM spans nested under each agent.
