@@ -1,122 +1,56 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useReducedMotion } from "framer-motion";
+import { CommandBar } from "./components/CommandBar";
+import { Panel } from "./components/Panel";
+import { ReplayControls } from "./components/ReplayControls";
+import { useAudit } from "./useAudit";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Demo ideas, exact text from AUDITOR_SPEC.md section 13.
+export const DEMO_IDEAS = ["buy dips in an uptrend", "buy straddles on tech before earnings", "sell straddles on low-volatility mega-caps"];
+
+export default function App() {
+  const a = useAudit();
+  const reduced = useReducedMotion() ?? false;
+  const canResume = !!a.currentAuditId && a.state.phase !== "done";
+  void reduced;
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto_auto] gap-3 p-4">
+      <CommandBar
+        state={a.state}
+        mode={a.mode}
+        chips={DEMO_IDEAS}
+        onSubmit={a.submitIdea}
+        controls={
+          <ReplayControls
+            playing={a.playing}
+            speed={a.speed}
+            onPlay={a.resume}
+            onPause={a.pause}
+            onSpeed={a.setSpeed}
+            disabled={!a.playing && !canResume}
+          />
+        }
+      />
+      <div className="grid min-h-0 grid-cols-[5fr_7fr] gap-3">
+        <Panel title="Agents">
+          <p className="text-sm text-muted">agent graph (Task 7)</p>
+        </Panel>
+        <Panel title="Evidence">
+          <p className="text-sm text-muted">equity curves (Task 8)</p>
+        </Panel>
+      </div>
+      <Panel title="Verdict">
+        <p className="text-sm text-muted">verdict stamp (Task 9)</p>
+      </Panel>
+      <footer className="flex items-center justify-between rounded-md border border-line bg-panel px-4 py-2 font-mono text-xs text-muted">
+        <span>footer meters (Task 9)</span>
+        <span>seq {a.state.lastSeq}</span>
+      </footer>
+      {a.state.errors.length > 0 && (
+        <div role="alert" className="fixed right-4 bottom-16 max-w-md rounded border border-kill/60 bg-panel px-4 py-3 text-sm text-text shadow-lg">
+          {a.state.errors[a.state.errors.length - 1]}
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      )}
+    </div>
+  );
 }
-
-export default App
