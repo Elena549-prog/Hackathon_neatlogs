@@ -1,0 +1,1304 @@
+{
+ "audit_id": "after-dips",
+ "idea": "buy dips in an uptrend",
+ "created": "2026-10-11T19:48:43Z",
+ "llm_calls": 4,
+ "cost": {
+  "prompt_tokens": 9800,
+  "completion_tokens": 9912,
+  "usd": 0.04655874
+ },
+ "recoveries": [],
+ "injected_used": false,
+ "steps": {
+  "plan": {
+   "status": "done",
+   "result": {
+    "plan": {
+     "refused": false,
+     "family": "stock_long",
+     "universe_group": "all_50",
+     "conditions": {
+      "close_to_ma200": [
+       ">",
+       1
+      ],
+      "ret_5d": [
+       "<",
+       0
+      ]
+     },
+     "exit": {
+      "target_pct": 0.1,
+      "stop_pct": 0.1,
+      "horizon_days": 10
+     },
+     "hypothesis": "Buying stocks that are above their 200-day moving average after a short-term negative 5-day return will lead to positive forward returns.",
+     "assumptions": [
+      "'uptrend' read as close above its 200-day average",
+      "'dips' read as a negative 5-day return at the close",
+      "long-only entry at the close"
+     ],
+     "not_tested": [
+      "intraday timing or buying at the exact low",
+      "fundamental or news catalysts",
+      "position sizing or portfolio allocation"
+     ],
+     "core_trigger_tested": true
+    },
+    "hash": "f750097799e4a98b2bfeb5940aaf5f3009ab8956f4b5347d9aef0f9552aeec4f",
+    "raw_replies": [
+     {
+      "refuse": {
+       "is_refused": false,
+       "reason": ""
+      },
+      "family": "stock_long",
+      "universe_group": "all_50",
+      "conditions": [
+       {
+        "feature": "close_to_ma200",
+        "op": ">",
+        "value": 1
+       },
+       {
+        "feature": "ret_5d",
+        "op": "<",
+        "value": 0
+       }
+      ],
+      "exit": {
+       "target_pct": 0.1,
+       "stop_pct": 0.1,
+       "horizon_days": 10
+      },
+      "hypothesis": "Buying stocks that are above their 200-day moving average after a short-term negative 5-day return will lead to positive forward returns.",
+      "assumptions": [
+       "'uptrend' read as close above its 200-day average",
+       "'dips' read as a negative 5-day return at the close",
+       "long-only entry at the close"
+      ],
+      "not_tested": [
+       "intraday timing or buying at the exact low",
+       "fundamental or news catalysts",
+       "position sizing or portfolio allocation"
+      ],
+      "core_trigger_tested": true
+     }
+    ],
+    "errors": [],
+    "what_tested": "stock_long on all_50 (50 tickers): enter when close_to_ma200 > 1 and ret_5d < 0; exit at +10% / -10% / 10 days. Not tested: intraday timing or buying at the exact low; fundamental or news catalysts; position sizing or portfolio allocation."
+   },
+   "finished": "2026-10-11T19:48:51Z"
+  },
+  "data": {
+   "status": "done",
+   "result": {
+    "coverage": {
+     "rows_per_ticker_year": {
+      "AAPL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MSFT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "GOOGL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AMZN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NVDA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "META": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "TSLA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "BRK-B": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "JPM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "V": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "JNJ": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "UNH": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "XOM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "PG": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "HD": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CVX": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MRK": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ABBV": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "PEP": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "KO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AVGO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "COST": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "LLY": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "WMT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "BAC": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "PFE": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "TMO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CSCO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MCD": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ABT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CRM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "DIS": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ACN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ADBE": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NFLX": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "WFC": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "TXN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NKE": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AMD": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "INTC": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "QCOM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "HON": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "UNP": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "IBM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CAT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "GS": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "BA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AMGN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "SBUX": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      }
+     },
+     "skipped": [],
+     "iv_rows": 0,
+     "iv_range": null,
+     "earnings_first_date": {
+      "AAPL": "2002-04-17",
+      "MSFT": "2002-01-17",
+      "GOOGL": "2004-10-21",
+      "AMZN": "2002-04-23",
+      "NVDA": "2002-05-22",
+      "META": "2012-07-26",
+      "TSLA": "2010-11-09",
+      "BRK-B": "2010-05-07",
+      "JPM": "2002-01-16",
+      "V": "2008-04-28",
+      "JNJ": "2002-01-22",
+      "UNH": "2002-01-24",
+      "XOM": "2002-01-23",
+      "PG": "2002-01-31",
+      "MA": "2006-08-02",
+      "HD": "2002-02-26",
+      "CVX": "2002-01-29",
+      "MRK": "2002-01-22",
+      "ABBV": "2013-03-15",
+      "PEP": "2002-02-06",
+      "KO": "2002-01-29",
+      "AVGO": "2009-12-03",
+      "COST": "2002-03-05",
+      "LLY": "2002-01-24",
+      "WMT": "2002-05-14",
+      "BAC": "2002-04-15",
+      "PFE": "2002-01-23",
+      "TMO": "2002-02-13",
+      "CSCO": "2002-05-07",
+      "MCD": "2002-01-24",
+      "ABT": "2002-01-16",
+      "CRM": "2004-08-19",
+      "DIS": "2002-01-31",
+      "ACN": "2002-04-11",
+      "ADBE": "2002-03-14",
+      "NFLX": "2002-07-24",
+      "WFC": "2002-01-15",
+      "TXN": "2002-01-28",
+      "NKE": "2002-03-21",
+      "AMD": "2002-01-16",
+      "INTC": "2002-04-16",
+      "QCOM": "2002-01-24",
+      "HON": "2002-04-18",
+      "UNP": "2002-01-24",
+      "IBM": "2002-01-17",
+      "CAT": "2002-01-23",
+      "GS": "2001-12-20",
+      "BA": "2002-01-23",
+      "AMGN": "2002-04-25",
+      "SBUX": "2002-04-25"
+     },
+     "tickers_without_earnings": []
+    }
+   },
+   "finished": "2026-10-11T19:48:53Z"
+  },
+  "backtest": {
+   "status": "done",
+   "result": {
+    "base": {
+     "train": {
+      "n": 6940,
+      "blocks": 276,
+      "win_rate": 0.5697406340057637,
+      "mean": 0.005219930712536257,
+      "median": 0.007126907538675398,
+      "ci_low": 0.001559525158233125,
+      "ci_high": 0.008776935713383264,
+      "worst_trade": -0.24260354218666635,
+      "worst_window": -5.123463143293737
+     },
+     "validation": {
+      "n": 303,
+      "blocks": 14,
+      "win_rate": 0.5610561056105611,
+      "mean": 0.009559828977586704,
+      "median": 0.008463797939847195,
+      "ci_low": -0.0024889769257854543,
+      "ci_high": 0.02091630344767699,
+      "worst_trade": -0.14743434751218443,
+      "worst_window": -1.0845893088958012
+     }
+    },
+    "baseline": {
+     "train": {
+      "n": 13457,
+      "blocks": 277,
+      "win_rate": 0.56959203388571,
+      "mean": 0.0062966753081046215,
+      "median": 0.007682987650077022,
+      "ci_low": 0.002706221855462887,
+      "ci_high": 0.009455006950932493,
+      "worst_trade": -0.31100372047664204,
+      "worst_window": -11.698714797164874
+     },
+     "validation": {
+      "n": 657,
+      "blocks": 14,
+      "win_rate": 0.5403348554033486,
+      "mean": 0.006346689676345804,
+      "median": 0.006585931874681483,
+      "ci_low": -0.003906375062356012,
+      "ci_high": 0.01645601499375042,
+      "worst_trade": -0.25710591620845513,
+      "worst_window": -1.8889861708588969
+     },
+     "paired_ci_low": -0.008544181076722463
+    },
+    "random_baseline": {
+     "train": {
+      "n": 6210,
+      "blocks": 276,
+      "win_rate": 0.5653784219001611,
+      "mean": 0.006015092814682542,
+      "median": 0.0073950433597370635,
+      "ci_low": 0.0022942426070121963,
+      "ci_high": 0.009655701245698391,
+      "worst_trade": -0.25961468199993853,
+      "worst_window": -5.92603181500154
+     },
+     "validation": {
+      "n": 282,
+      "blocks": 13,
+      "win_rate": 0.5567375886524822,
+      "mean": 0.004385274851015213,
+      "median": 0.009041961380495622,
+      "ci_low": -0.011300407801054286,
+      "ci_high": 0.017851948203944056,
+      "worst_trade": -0.25710591620845513,
+      "worst_window": -1.1246935748697555
+     }
+    },
+    "stricter": null,
+    "tail": {
+     "worst_trade": -0.24260354218666635,
+     "worst_window": -5.123463143293737,
+     "fails": false
+    },
+    "drops": {
+     "train": {
+      "exit_after_cutoff": 109,
+      "exit_past_data": 0
+     },
+     "validation": {
+      "exit_after_cutoff": 0,
+      "exit_past_data": 0
+     }
+    },
+    "dates_max": "2026-06-30",
+    "n_trades": {
+     "train": 6940,
+     "validation": 303
+    }
+   },
+   "finished": "2026-10-11T19:48:54Z"
+  },
+  "choose": {
+   "status": "done",
+   "result": {
+    "checks": [
+     {
+      "check": "evidence",
+      "passed": true,
+      "value": {
+       "n": 303,
+       "blocks": 14
+      },
+      "note": "validation needs n >= 30 and at least 6 distinct 10-trading-day blocks"
+     },
+     {
+      "check": "leakage",
+      "passed": true,
+      "value": "2026-06-30",
+      "note": "no feature or trade date after 2026-06-30 (earnings features exempt, see caveat)"
+     },
+     {
+      "check": "decay",
+      "passed": true,
+      "value": {
+       "train_mean": 0.005219930712536257,
+       "validation_mean": 0.009559828977586704
+      },
+      "note": "validation mean +0.96% vs train mean +0.52%"
+     },
+     {
+      "check": "shared_window",
+      "passed": true,
+      "value": 3,
+      "note": "3 earlier audit(s) used this validation window. About 5% of plans with no real edge pass this test by chance; testing many variants of one idea raises that."
+     },
+     {
+      "check": "cost_realism",
+      "passed": true,
+      "value": null,
+      "note": "stock_long: no fees or slippage modeled"
+     },
+     {
+      "check": "tail_risk",
+      "passed": true,
+      "value": {
+       "worst_trade": -0.24260354218666635,
+       "worst_window": -5.123463143293737
+      },
+      "note": "worst trade -24.26%, worst 10-day window -512.35% (train plus validation)"
+     },
+     {
+      "check": "data_drops",
+      "passed": true,
+      "value": {
+       "train": {
+        "exit_after_cutoff": 109,
+        "exit_past_data": 0
+       },
+       "validation": {
+        "exit_after_cutoff": 0,
+        "exit_past_data": 0
+       }
+      },
+      "note": "setups dropped for exits past the cutoff or the data, stale implied vol, missing earnings coverage"
+     }
+    ],
+    "window_count": 3,
+    "doubts": [
+     "Validation CI includes zero (mean +0.00956, CI -0.00249 to +0.02092), so the positive validation mean is not statistically reliable.",
+     "The base validation mean is only slightly above the baseline validation mean (+0.00635) and paired_ci_low is -0.00854, so the edge over baseline is not confirmed.",
+     "No fees or slippage are modeled, and with only 14 validation blocks the small gross edge could easily disappear after costs or under temporal clustering.",
+     "Shared_window note says 3 earlier audits used this window; multiple testing raises the chance this is a false positive."
+    ],
+    "chosen": [
+     {
+      "id": "F1",
+      "reason": "The +0.96% validation mean over 303 trades may be inflated by earnings jumps inside the 10-day holding window, so excluding earnings tests whether the non-news signal remains positive."
+     },
+     {
+      "id": "F3",
+      "reason": "The strategy is built around a 10-day exit and shows a small validation mean (+0.96%), so if 5- and 20-day horizons both fail, the result is likely horizon-specific overfitting."
+     },
+     {
+      "id": "F4",
+      "reason": "With 303 validation trades across 50 tickers and a mean near +1%, a single ticker's outsized contribution could drive the entire result."
+     }
+    ],
+    "ignored": [],
+    "note": null,
+    "budget_hit": false,
+    "disabled": false
+   },
+   "finished": "2026-10-11T19:49:47Z"
+  },
+  "followups": {
+   "status": "done",
+   "result": {
+    "runs": [
+     {
+      "id": "F1",
+      "title": "Earnings excluded",
+      "result": "validation mean +0.98% over 261 trades (42 left out: earnings in the holding window; 0: no earnings coverage)",
+      "downgrade": false,
+      "cause": null,
+      "train": {
+       "n": 5845,
+       "blocks": 276,
+       "win_rate": 0.5714285714285714,
+       "mean": 0.004723498724303867,
+       "median": 0.0069719341238585475,
+       "ci_low": 0.0009104847631904915,
+       "ci_high": 0.008596863234966024,
+       "worst_trade": -0.18795190506643322,
+       "worst_window": -4.710792575458164
+      },
+      "validation": {
+       "n": 261,
+       "blocks": 14,
+       "win_rate": 0.5670498084291188,
+       "mean": 0.009793823953405643,
+       "median": 0.008463797939847195,
+       "ci_low": -0.0027093830843223305,
+       "ci_high": 0.02168065636568659,
+       "worst_trade": -0.11746940137920525,
+       "worst_window": -1.0845893088958012
+      },
+      "left_out": {
+       "train": {
+        "earnings_in_window": 1095,
+        "no_earnings_coverage": 0
+       },
+       "validation": {
+        "earnings_in_window": 42,
+        "no_earnings_coverage": 0
+       }
+      },
+      "reason": "The +0.96% validation mean over 303 trades may be inflated by earnings jumps inside the 10-day holding window, so excluding earnings tests whether the non-news signal remains positive."
+     },
+     {
+      "id": "F3",
+      "title": "Horizon sensitivity",
+      "result": "horizon 5 days: validation mean +0.42% over 424 trades; horizon 20 days: validation mean +0.89% over 213 trades",
+      "downgrade": false,
+      "cause": null,
+      "train": {
+       "n": 10156,
+       "blocks": 277,
+       "win_rate": 0.5503150846790075,
+       "mean": 0.0023569690291549597,
+       "median": 0.0037859719855831697,
+       "ci_low": 3.567580543962223e-05,
+       "ci_high": 0.004450636594738632,
+       "worst_trade": -0.24260354218666635,
+       "worst_window": -5.48876978036852
+      },
+      "validation": {
+       "n": 424,
+       "blocks": 14,
+       "win_rate": 0.5283018867924528,
+       "mean": 0.0042121691165663755,
+       "median": 0.0020744269749217725,
+       "ci_low": -0.0016639625349009783,
+       "ci_high": 0.010700405850923727,
+       "worst_trade": -0.15053222237853459,
+       "worst_window": -0.8402281014367871
+      },
+      "variants": {
+       "5": {
+        "train": {
+         "n": 10156,
+         "blocks": 277,
+         "win_rate": 0.5503150846790075,
+         "mean": 0.0023569690291549597,
+         "median": 0.0037859719855831697,
+         "ci_low": 3.567580543962223e-05,
+         "ci_high": 0.004450636594738632,
+         "worst_trade": -0.24260354218666635,
+         "worst_window": -5.48876978036852
+        },
+        "validation": {
+         "n": 424,
+         "blocks": 14,
+         "win_rate": 0.5283018867924528,
+         "mean": 0.0042121691165663755,
+         "median": 0.0020744269749217725,
+         "ci_low": -0.0016639625349009783,
+         "ci_high": 0.010700405850923727,
+         "worst_trade": -0.15053222237853459,
+         "worst_window": -0.8402281014367871
+        }
+       },
+       "20": {
+        "train": {
+         "n": 4562,
+         "blocks": 276,
+         "win_rate": 0.5723366944322665,
+         "mean": 0.009231227922865381,
+         "median": 0.012929795969966129,
+         "ci_low": 0.004398319489564964,
+         "ci_high": 0.01389599814446118,
+         "worst_trade": -0.24260354218666635,
+         "worst_window": -4.2528510781386135
+        },
+        "validation": {
+         "n": 213,
+         "blocks": 14,
+         "win_rate": 0.5164319248826291,
+         "mean": 0.008918417603985599,
+         "median": 0.006956526176053579,
+         "ci_low": -0.006253179077589888,
+         "ci_high": 0.02498594150623783,
+         "worst_trade": -0.15053222237853459,
+         "worst_window": -0.8682617562954927
+        }
+       }
+      },
+      "reason": "The strategy is built around a 10-day exit and shows a small validation mean (+0.96%), so if 5- and 20-day horizons both fail, the result is likely horizon-specific overfitting."
+     },
+     {
+      "id": "F4",
+      "title": "Concentration",
+      "result": "without the top-contributing ticker (its validation trades sum to +57.58%; all validation trades sum to +289.66%): validation mean +0.79% over 293 trades",
+      "downgrade": false,
+      "cause": null,
+      "train": {
+       "n": 6787,
+       "blocks": 276,
+       "win_rate": 0.5696183880948873,
+       "mean": 0.004964531295927066,
+       "median": 0.00701613579660143,
+       "ci_low": 0.0013965507052175702,
+       "ci_high": 0.008455386686662745,
+       "worst_trade": -0.2128815827230348,
+       "worst_window": -5.023463143293737
+      },
+      "validation": {
+       "n": 293,
+       "blocks": 14,
+       "win_rate": 0.552901023890785,
+       "mean": 0.007920919899618222,
+       "median": 0.0073140129482751615,
+       "ci_low": -0.004655451015459114,
+       "ci_high": 0.020087021540117912,
+       "worst_trade": -0.1366773125025067,
+       "worst_window": -1.1126594879794087
+      },
+      "ticker": "AMD",
+      "reason": "With 303 validation trades across 50 tickers and a mean near +1%, a single ticker's outsized contribution could drive the entire result."
+     }
+    ]
+   },
+   "finished": "2026-10-11T19:49:48Z"
+  },
+  "critique": {
+   "status": "done",
+   "result": {
+    "critique": "The validation evidence is thin: only 303 trades across 14 blocks, and the mean's confidence interval spans zero. The conditional strategy adds little over the no-condition baseline; validation mean is 0.96% versus 0.63% for baseline, and the paired lower confidence bound is negative, so the entry rule may not be a real improvement. Reported results ignore fees and slippage, which could easily erase a per-trade edge of this size. Tail risk is material, with a -24.26% worst trade and a -512.35% worst 10-day window. One ticker contributes about 19.9% of the validation profit sum, so the result is not well diversified, and 109 dropped train exits may bias the sample.",
+    "doubts": [
+     "Validation sample is small (303 trades, 14 blocks) and the mean CI includes zero.",
+     "The no-condition baseline has a comparable validation mean and the paired CI lower bound is negative, so the added condition may not help.",
+     "No fees or slippage are modeled; after realistic costs, the small mean could disappear.",
+     "Tail risk is severe: worst trade -24.26%, worst 10-day window -512.35%.",
+     "Concentration: removing the top-contributing ticker lowers validation mean from +0.96% to +0.79%, and that ticker accounts for ~19.9% of validation profits.",
+     "Data drops: 109 train exits after cutoff could introduce selection bias; block overlap may overstate effective sample size.",
+     "Horizon sensitivity: 5-day validation mean is only +0.42%, weaker than the 10-day result."
+    ],
+    "budget_hit": false
+   },
+   "finished": "2026-10-11T19:50:08Z"
+  },
+  "verdict": {
+   "status": "done",
+   "result": {
+    "verdict": "inconclusive",
+    "reason": "positive but not convincing: lower bound of the validation mean is not above 0; paired lower bound against the no-condition baseline is not above 0; train mean is not above the train baseline mean",
+    "headline": {
+     "n": 303,
+     "mean": 0.009559828977586704,
+     "ci_low": -0.0024889769257854543,
+     "paired_ci_low": -0.008544181076722463
+    },
+    "downgrades": []
+   },
+   "finished": "2026-10-11T19:50:08Z"
+  },
+  "report": {
+   "status": "done",
+   "result": {
+    "path": "D:\\zeesh\\projects\\trading-swarm\\.claude\\worktrees\\demo-694260\\runs\\audits\\after-dips\\report.md",
+    "prose_included": true
+   },
+   "finished": "2026-10-11T19:50:09Z"
+  }
+ },
+ "started": "2026-10-11T19:48:43Z"
+}
