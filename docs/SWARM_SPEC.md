@@ -194,3 +194,16 @@ tests/test_simulator.py
 6. Fixed levels: stop −3%, target +5%, 10-day horizon, matching the label rule (section 5).
 7. EV gate on the cautious hit rate: 95% Wilson lower bound, minimum 30 matching setups (section 7).
 8. 1–4 conditions per plan, enforced in code, and a "too broad" block when conditions match more than 80% of eligible train setups. The 80% is a judgment call, not derived (sections 5 and 7).
+
+## 15. Cost controls (owner, 2026-10-11)
+
+The validation run cost about $0.038 per setup (upper bound). The Planner made two thirds of the LLM calls (1,154 of ~1,760), all on `deepseek-v4-pro` with thinking on. Changes, decided by the owner after that run:
+
+1. **Price watcher.** The swarm runs only when a setup shows an unusual 1-day move: `|ret_1d| >= 1.5 x vol_20d`, up or down. Other setups are logged with verdict `skipped`, rounds 0, and no LLM call. The 1.5 was chosen from trigger frequency alone (12.3% of train days, 17.0% of validation days), before looking at any outcome. Both features are known on the setup day, so the watcher adds no leakage.
+2. **Second round only for fixable failures.** After a block, the Planner gets round 2 unless the gate's reason was break-even: at least 30 matches, not too broad, and the cautious hit rate still at or below 37.5%. Rewording does not change that evidence. Too few matches, too broad, invalid plans, and Naysayer objections still get round 2. In the first validation run, every setup used both rounds and round 2 produced one approval.
+3. **Planner effort: unchanged.** The owner asked for medium. DeepSeek's OpenAI-format API accepts `low`, `high` and `max`, and maps `medium` to `high`, so medium costs the same as today. Open decision: keep `high`, or try `low`.
+4. **Gate pre-check: evaluated, not built.** Idea: before calling the Planner, search simple theses (1 or 2 conditions at train deciles that the setup satisfies) in code, and skip the LLM if none passes the gate. Measured on the 98 triggered validation setups: every one has a passing single condition, so the pre-check would skip 0%.
+
+**Finding (for the owners):** the passing single conditions are narrow, not loopholes: the narrowest one per setup matches 9–50% of eligible train setups (median 20%). The most common are `ret_1d >= 90th percentile` (42 of 98 setups) and `ret_5d <= 20th percentile` (23). Two cautions: (a) with 63 candidate single conditions per setup, some pass on train by chance, so "passes the gate" is not proof of an edge; (b) the Planner tries up to two theses per setup, and the gate does not correct for that. The validation outcome of approved trades is the real check.
+
+Tests added (section 11): a quiet setup is skipped with no LLM call; a 1.5-sigma move wakes the swarm; a break-even block ends after round 1; too-few and too-broad blocks get round 2.

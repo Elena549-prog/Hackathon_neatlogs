@@ -39,18 +39,29 @@ def validate_verdict(out):
     return None
 
 
-def gate(math):
-    """The hard gate from SWARM_SPEC section 7, enforced in code. None if passed, else the objection."""
+def _gate(math):
+    """(failure kind, objection) for the hard gate in SWARM_SPEC section 7, or (None, None) if it passes."""
     if math["n"] < MIN_MATCHES:
-        return "only %d comparable past setups match the conditions; need at least %d" % (math["n"], MIN_MATCHES)
+        return "too_few", "only %d comparable past setups match the conditions; need at least %d" % (math["n"], MIN_MATCHES)
     if math["n"] > MAX_SHARE * math["eligible"]:
-        return ("thesis too broad: the conditions match %d of %d past setups (%.0f%%, limit %.0f%%); "
-                "narrow them so they pick out setups like this one"
-                % (math["n"], math["eligible"], 100 * math["match_share"], 100 * MAX_SHARE))
+        return "too_broad", ("thesis too broad: the conditions match %d of %d past setups (%.0f%%, limit %.0f%%); "
+                             "narrow them so they pick out setups like this one"
+                             % (math["n"], math["eligible"], 100 * math["match_share"], 100 * MAX_SHARE))
     if math["ev_per_share"] is None or math["ev_per_share"] <= 0:
-        return ("cautious hit rate %.1f%% (95%% lower bound; plain %.1f%% over %d setups) is not above "
-                "the 37.5%% break-even" % (100 * math["hit_rate_low"], 100 * math["hit_rate"], math["n"]))
-    return None
+        return "break_even", ("cautious hit rate %.1f%% (95%% lower bound; plain %.1f%% over %d setups) is not above "
+                              "the 37.5%% break-even" % (100 * math["hit_rate_low"], 100 * math["hit_rate"], math["n"]))
+    return None, None
+
+
+def gate(math):
+    """The hard gate, enforced in code. None if passed, else the objection."""
+    return _gate(math)[1]
+
+
+def retryable(math):
+    """Worth a second round? Not when the thesis has enough evidence and it says the bet loses:
+    rewording won't change that. Too few matches, too broad, and Naysayer objections are fixable."""
+    return _gate(math)[0] != "break_even"
 
 
 def run(llm, plan_view, facts, math, **tags):

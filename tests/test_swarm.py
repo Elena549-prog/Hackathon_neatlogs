@@ -209,6 +209,43 @@ def test_resume_redecides_only_errors_and_missing_setups(tmp_path, good_backtest
     assert not (tmp_path / "r.jsonl.tmp").exists()
 
 
+def test_watcher_skips_quiet_days_without_any_llm_call(tmp_path):
+    m = make_market({"AAA": [100.0] * 80}, [
+        ("AAA", 30, "validation", 1, {"ret_1d": 0.001, "vol_20d": 0.02}),     # 0.05 sigma: quiet
+        ("AAA", 31, "validation", 0, {"ret_1d": -0.04, "vol_20d": 0.02}),     # 2 sigma drop: wake
+        ("AAA", 32, "validation", 1, {"ret_1d": 0.03, "vol_20d": 0.02}),      # exactly 1.5 sigma: wake
+    ])
+    llm = fake_llm()
+    recs = swarm.run("validation", m, llm, Tracer(), out_path=str(tmp_path / "w.jsonl"))
+    assert recs[0]["verdict"] == "skipped" and recs[0]["rounds"] == 0 and recs[0]["label"] == 1
+    assert [r["verdict"] != "skipped" for r in recs] == [False, True, True]
+    assert [c["agent"] for c in llm.calls].count("researcher") == 2
+
+
+def gate_backtest(monkeypatch, **bt):
+    monkeypatch.setattr(swarm, "backtest", lambda *a, **k: dict(GOOD_BT, **bt))
+
+
+def test_break_even_block_is_not_retried(monkeypatch):
+    gate_backtest(monkeypatch, n=300, hit_rate=0.40, hit_rate_low=0.30)
+    llm = fake_llm()
+    m = market()
+    rec = swarm.decide(m.setups.iloc[0].to_dict(), m, llm, Tracer())
+    assert (rec["verdict"], rec["rounds"]) == ("dropped", 1)
+    assert "break-even" in rec["objections"][0]
+    assert [c["agent"] for c in llm.calls] == ["researcher", "planner"]
+
+
+@pytest.mark.parametrize("bt, reason", [({"n": 10}, "need at least 30"),
+                                        ({"n": 1100, "eligible": 1200}, "too broad")])
+def test_fixable_gate_blocks_get_a_second_round(monkeypatch, bt, reason):
+    gate_backtest(monkeypatch, **bt)
+    llm = fake_llm()
+    m = market()
+    rec = swarm.decide(m.setups.iloc[0].to_dict(), m, llm, Tracer())
+    assert (rec["verdict"], rec["rounds"]) == ("dropped", 2) and reason in rec["objections"][0]
+
+
 def test_refuses_the_test_split():
     with pytest.raises(SystemExit):
         swarm.run("test", market(), fake_llm(), Tracer())

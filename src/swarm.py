@@ -1,9 +1,11 @@
 """Step 5: the four-agent swarm. One decision line per setup, then a summary.
 
-For each setup: Researcher -> Planner -> Mathematician -> Naysayer. A block sends the
-objections back to the Planner, up to MAX_ROUNDS rounds; then the setup is dropped.
-Approved plans become paper trades, closed by the simulator only after the decision
-is logged. Agents never see the label, the ticker, the date, or raw price levels.
+A price watcher wakes the swarm only on an unusual move (see triggered()); other setups
+are logged as skipped, with no LLM call. For each triggered setup: Researcher -> Planner
+-> Mathematician -> Naysayer. A fixable block sends the objections back to the Planner,
+up to MAX_ROUNDS rounds; then the setup is dropped. Approved plans become paper trades,
+closed by the simulator only after the decision is logged. Agents never see the label,
+the ticker, the date, or raw price levels.
 
     python -m src.swarm --split validation --limit 5     # smoke run
     python -m src.swarm --split validation               # baseline run
@@ -22,7 +24,13 @@ from src.tools import backtest, get_prices
 
 MAX_ROUNDS = 2
 LOOKBACK = 20
+WATCH_SIGMA = 1.5   # wake the swarm when |1-day return| >= 1.5 x 20-day volatility (fires on ~12% of train days)
 SUMMARY_PATH = os.path.join("runs", "swarm_summary.md")
+
+
+def triggered(setup):
+    """The price watcher: an unusual 1-day move, up or down. Uses only data at or before the setup day."""
+    return abs(setup["ret_1d"]) >= WATCH_SIGMA * setup["vol_20d"]
 
 
 def normalized(plan):
@@ -61,7 +69,7 @@ def decide(setup, market, llm, tracer):
                 math = mathematician.run(plan, bt)
                 rec["input"], rec["output"] = bt, math
             verdict, objections = naysayer.run(llm, normalized(plan), facts, math, round=rnd, **tags)
-            if verdict == "approve":
+            if verdict == "approve" or not naysayer.retryable(math):
                 break
     return {"ticker": ticker, "date": date, "split": setup["split"], "rounds": rnd,
             "verdict": "approve" if verdict == "approve" else "dropped",
@@ -95,6 +103,10 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume
     def one(setup):
         if (setup["ticker"], setup["date"]) in done:
             return done[(setup["ticker"], setup["date"])]
+        if not triggered(setup):    # no unusual move: the watcher doesn't wake the swarm, no LLM call
+            return {"ticker": setup["ticker"], "date": setup["date"], "split": split, "rounds": 0,
+                    "verdict": "skipped", "plan": None, "objections": [], "trade_outcome": None,
+                    "pnl_pct": None, "label": int(setup["label"])}
         try:
             rec = decide(setup, market, llm, tracer)
         except Exception as e:     # one bad setup must not stop the run; it is logged as an error
@@ -123,11 +135,12 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume
 def summarize(records, market, split, cost=0.0, seed=0):
     """Markdown summary: swarm vs random approvals vs always-approve vs buy-and-hold."""
     labels = np.array([r["label"] for r in records])
+    woke = np.array([r["verdict"] != "skipped" for r in records])
     approved = [r for r in records if r["verdict"] == "approve"]
-    n, k = len(records), len(approved)
-    rate = k / n if n else 0.0
+    n, k, n_woke = len(records), len(approved), int(woke.sum())
+    rate = k / n_woke if n_woke else 0.0
     rng = np.random.default_rng(seed)
-    random_pick = rng.random(n) < rate                      # same approval rate as the swarm
+    random_pick = woke & (rng.random(n) < rate)               # same approval rate, among the same setups
     dates = market.setups.loc[market.setups["split"] == split, "date"]
     bh = [market.prices[t].loc[dates.min():dates.max(), "Adj Close"] for t in market.prices]
     bh_return = float(np.mean([s.iloc[-1] / s.iloc[0] - 1 for s in bh]))
@@ -139,15 +152,18 @@ def summarize(records, market, split, cost=0.0, seed=0):
         "# Swarm summary: %s split" % split, "",
         "| Item | Value |", "|---|---|",
         "| Setups | %d |" % n,
-        "| Approved | %d (%s) |" % (k, pct(rate)),
-        "| Dropped after %d rounds | %d |" % (MAX_ROUNDS, sum(r["verdict"] == "dropped" for r in records)),
+        "| Watcher woke the swarm (1-day move at least %.1f x 20-day vol) | %d (%s) |" % (WATCH_SIGMA, n_woke, pct(n_woke / n if n else None)),
+        "| Skipped by the watcher (no LLM call) | %d |" % (n - n_woke),
+        "| Approved | %d (%s of woken) |" % (k, pct(rate)),
+        "| Dropped | %d |" % sum(r["verdict"] == "dropped" for r in records),
         "| Errors | %d |" % sum(r["verdict"] == "error" for r in records),
-        "| LLM cost | $%.4f |" % cost, "",
+        "| LLM cost | $%.4f (%s per woken setup) |" % (cost, "$%.4f" % (cost / n_woke) if n_woke else "n/a"), "",
         "## Precision of approved trades (share that hit +5% before -3%)", "",
         "| Method | Approved | Precision |", "|---|---|---|",
         "| Swarm | %d | %s |" % (k, pct(np.mean([r["trade_outcome"] == "win" for r in approved]) if k else None)),
-        "| Random, same approval rate (seed %d) | %d | %s |" % (seed, random_pick.sum(), pct(labels[random_pick].mean() if random_pick.any() else None)),
-        "| Always approve (= base rate) | %d | %s |" % (n, pct(labels.mean() if n else None)), "",
+        "| Random, same approval rate among woken setups (seed %d) | %d | %s |" % (seed, random_pick.sum(), pct(labels[random_pick].mean() if random_pick.any() else None)),
+        "| Always approve woken setups | %d | %s |" % (n_woke, pct(labels[woke].mean() if n_woke else None)),
+        "| Always approve every setup (= base rate) | %d | %s |" % (n, pct(labels.mean() if n else None)), "",
         "Mean P&L per approved trade: %s." % pct(np.mean([r["pnl_pct"] for r in approved]) if k else None),
         "Buy-and-hold over the split, mean across tickers: %s." % pct(bh_return), "",
         "Notes: no fees or slippage. Every plan uses the fixed +5%/-3%/10-day levels, so swarm",
