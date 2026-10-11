@@ -1,0 +1,622 @@
+{
+ "audit_id": "before-straddle-buy",
+ "idea": "buy straddles on tech before earnings",
+ "created": "2026-10-11T19:46:40Z",
+ "llm_calls": 3,
+ "cost": {
+  "prompt_tokens": 6025,
+  "completion_tokens": 3238,
+  "usd": 0.017412359999999998
+ },
+ "recoveries": [],
+ "injected_used": false,
+ "steps": {
+  "plan": {
+   "status": "done",
+   "result": {
+    "plan": {
+     "refused": false,
+     "family": "straddle_buy",
+     "universe_group": "tech",
+     "conditions": {
+      "earnings_within_10d": [
+       ">",
+       0
+      ]
+     },
+     "hypothesis": "Buying at-the-money straddles on tech stocks before earnings captures volatility expansion around earnings announcements.",
+     "assumptions": [
+      "'before earnings' read as an earnings report falls within the next 10 trading days",
+      "Straddle is at-the-money and held for 10 days"
+     ],
+     "not_tested": [
+      "Specific strike selection and option pricing/greeks",
+      "Transaction costs and bid-ask spreads",
+      "Directional earnings surprise"
+     ],
+     "core_trigger_tested": true
+    },
+    "hash": "0e7bf7eafed88363a6a9c972dcfeab78673fbce1776c1d66afe694d0c2247698",
+    "raw_replies": [
+     {
+      "refuse": {
+       "is_refused": false,
+       "reason": ""
+      },
+      "family": "straddle_buy",
+      "universe_group": "tech",
+      "conditions": [
+       {
+        "feature": "earnings_within_10d",
+        "op": ">",
+        "value": 0
+       }
+      ],
+      "hypothesis": "Buying at-the-money straddles on tech stocks before earnings captures volatility expansion around earnings announcements.",
+      "assumptions": [
+       "'before earnings' read as an earnings report falls within the next 10 trading days",
+       "Straddle is at-the-money and held for 10 days"
+      ],
+      "not_tested": [
+       "Specific strike selection and option pricing/greeks",
+       "Transaction costs and bid-ask spreads",
+       "Directional earnings surprise"
+      ],
+      "core_trigger_tested": true
+     }
+    ],
+    "errors": [],
+    "what_tested": "straddle_buy on tech (17 tickers): enter when earnings_within_10d > 0; hold 10 days. Not tested: Specific strike selection and option pricing/greeks; Transaction costs and bid-ask spreads; Directional earnings surprise."
+   },
+   "finished": "2026-10-11T19:46:45Z"
+  },
+  "data": {
+   "status": "done",
+   "result": {
+    "coverage": {
+     "rows_per_ticker_year": {
+      "AAPL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MSFT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NVDA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AVGO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CSCO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "CRM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ACN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "ADBE": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "TXN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AMD": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "INTC": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "QCOM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "IBM": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "GOOGL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "META": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NFLX": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "DIS": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      }
+     },
+     "skipped": [],
+     "iv_rows": 20011,
+     "iv_range": [
+      "2019-06-01",
+      "2026-06-30"
+     ],
+     "earnings_first_date": {
+      "AAPL": "2002-04-17",
+      "MSFT": "2002-01-17",
+      "NVDA": "2002-05-22",
+      "AVGO": "2009-12-03",
+      "CSCO": "2002-05-07",
+      "CRM": "2004-08-19",
+      "ACN": "2002-04-11",
+      "ADBE": "2002-03-14",
+      "TXN": "2002-01-28",
+      "AMD": "2002-01-16",
+      "INTC": "2002-04-16",
+      "QCOM": "2002-01-24",
+      "IBM": "2002-01-17",
+      "GOOGL": "2004-10-21",
+      "META": "2012-07-26",
+      "NFLX": "2002-07-24",
+      "DIS": "2002-01-31"
+     },
+     "tickers_without_earnings": []
+    }
+   },
+   "finished": "2026-10-11T19:46:47Z"
+  },
+  "backtest": {
+   "status": "done",
+   "result": {
+    "base": {
+     "train": {
+      "n": 398,
+      "blocks": 133,
+      "win_rate": 0.2185929648241206,
+      "mean": -0.34623024901379584,
+      "median": -0.468801723030657,
+      "ci_low": -0.39946418292911146,
+      "ci_high": -0.28611780187359065,
+      "worst_trade": -0.9993637515549297,
+      "worst_window": -6.311461054650309
+     },
+     "validation": {
+      "n": 34,
+      "blocks": 12,
+      "win_rate": 0.2647058823529412,
+      "mean": -0.18375730888503042,
+      "median": -0.48734571853292963,
+      "ci_low": -0.36177584020641723,
+      "ci_high": 0.08866276569605687,
+      "worst_trade": -0.9573651058579913,
+      "worst_window": -4.866260891148587
+     }
+    },
+    "baseline": {
+     "train": {
+      "n": 2255,
+      "blocks": 143,
+      "win_rate": 0.37472283813747226,
+      "mean": -0.08418377815577317,
+      "median": -0.2536584197529469,
+      "ci_low": -0.14156668163464897,
+      "ci_high": -0.01702244759904932,
+      "worst_trade": -1.0,
+      "worst_window": -11.117963049856625
+     },
+     "validation": {
+      "n": 204,
+      "blocks": 12,
+      "win_rate": 0.37254901960784315,
+      "mean": -0.05231472876084905,
+      "median": -0.2581519118811273,
+      "ci_low": -0.16362478652461548,
+      "ci_high": 0.05994904791558338,
+      "worst_trade": -1.0,
+      "worst_window": -6.082938188870138
+     },
+     "paired_ci_low": -0.31729525176947054
+    },
+    "random_baseline": {
+     "train": {
+      "n": 390,
+      "blocks": 131,
+      "win_rate": 0.39487179487179486,
+      "mean": -0.06353990357466317,
+      "median": -0.21216927566978439,
+      "ci_low": -0.14752937480257944,
+      "ci_high": 0.02349847045219325,
+      "worst_trade": -0.9940038653477286,
+      "worst_window": -4.744162593964991
+     },
+     "validation": {
+      "n": 32,
+      "blocks": 10,
+      "win_rate": 0.25,
+      "mean": -0.25604421812880196,
+      "median": -0.3907613103348897,
+      "ci_low": -0.5076046864928001,
+      "ci_high": -0.011528583436699207,
+      "worst_trade": -0.9781666703703041,
+      "worst_window": -2.1590323549437453
+     }
+    },
+    "stricter": {
+     "train": {
+      "n": 398,
+      "blocks": 133,
+      "win_rate": 0.1884422110552764,
+      "mean": -0.4056638627398144,
+      "median": -0.5170924754824154,
+      "ci_low": -0.45405834811737406,
+      "ci_high": -0.35101618352144603,
+      "worst_trade": -0.9994215923226634,
+      "worst_window": -6.555873686045736
+     },
+     "validation": {
+      "n": 34,
+      "blocks": 12,
+      "win_rate": 0.2647058823529412,
+      "mean": -0.2579611898954822,
+      "median": -0.5339506532117543,
+      "ci_low": -0.41979621836947023,
+      "ci_high": -0.010306576639948373,
+      "worst_trade": -0.9612410053254465,
+      "worst_window": -5.242055355589624
+     }
+    },
+    "tail": {
+     "worst_trade": -0.9993637515549297,
+     "worst_window": -6.311461054650309,
+     "fails": false
+    },
+    "drops": {
+     "train": {
+      "exit_after_cutoff": 0,
+      "exit_past_data": 0,
+      "stale_iv": 107,
+      "earnings_in_window": 398
+     },
+     "validation": {
+      "exit_after_cutoff": 0,
+      "exit_past_data": 0,
+      "stale_iv": 0,
+      "earnings_in_window": 34
+     }
+    },
+    "dates_max": "2026-06-17",
+    "n_trades": {
+     "train": 398,
+     "validation": 34
+    }
+   },
+   "finished": "2026-10-11T19:46:48Z"
+  },
+  "choose": {
+   "status": "done",
+   "result": {
+    "checks": [
+     {
+      "check": "evidence",
+      "passed": true,
+      "value": {
+       "n": 34,
+       "blocks": 12
+      },
+      "note": "validation needs n >= 30 and at least 6 distinct 10-trading-day blocks"
+     },
+     {
+      "check": "leakage",
+      "passed": true,
+      "value": "2026-06-17",
+      "note": "no feature or trade date after 2026-06-30 (earnings features exempt, see caveat)"
+     },
+     {
+      "check": "decay",
+      "passed": false,
+      "value": {
+       "train_mean": -0.34623024901379584,
+       "validation_mean": -0.18375730888503042
+      },
+      "note": "validation mean -18.38% vs train mean -34.62%"
+     },
+     {
+      "check": "shared_window",
+      "passed": true,
+      "value": 1,
+      "note": "1 earlier audit(s) used this validation window. About 5% of plans with no real edge pass this test by chance; testing many variants of one idea raises that."
+     },
+     {
+      "check": "cost_realism",
+      "passed": false,
+      "value": {
+       "earnings_share": 1.0,
+       "stricter_ci_low": -0.41979621836947023
+      },
+      "note": "100% of validation trades had earnings in the window (priced x1.20); stricter-cost lower bound -41.98%"
+     },
+     {
+      "check": "tail_risk",
+      "passed": true,
+      "value": {
+       "worst_trade": -0.9993637515549297,
+       "worst_window": -6.311461054650309
+      },
+      "note": "worst trade -99.94%, worst 10-day window -631.15% (train plus validation)"
+     },
+     {
+      "check": "data_drops",
+      "passed": true,
+      "value": {
+       "train": {
+        "exit_after_cutoff": 0,
+        "exit_past_data": 0,
+        "stale_iv": 107,
+        "earnings_in_window": 398
+       },
+       "validation": {
+        "exit_after_cutoff": 0,
+        "exit_past_data": 0,
+        "stale_iv": 0,
+        "earnings_in_window": 34
+       }
+      },
+      "note": "setups dropped for exits past the cutoff or the data, stale implied vol, missing earnings coverage"
+     }
+    ],
+    "window_count": 1,
+    "doubts": [],
+    "chosen": [],
+    "ignored": [],
+    "note": "follow-ups disabled for this run (--no-followups, the M1 behaviour)",
+    "budget_hit": false,
+    "disabled": true
+   },
+   "finished": "2026-10-11T19:46:48Z"
+  },
+  "followups": {
+   "status": "done",
+   "result": {
+    "runs": []
+   },
+   "finished": "2026-10-11T19:46:48Z"
+  },
+  "critique": {
+   "status": "done",
+   "result": {
+    "critique": "The base results are negative in both train and validation, and the validation sample is tiny (n=34, 12 blocks). The validation confidence interval barely crosses zero, but the median is still about -49%, so the central outcome is strongly negative and any positive upper bound is probably noise. The strategy underperforms the unconditional baseline in both periods, meaning the earnings-within-10d condition appears to worsen a losing straddle rather than add edge. Cost realism fails because all validation trades were earnings-event trades and the stricter lower bound is about -42%, so executable costs would make it worse. Tail risk is severe, with near-total single-trade losses and multi-hundred-percent 10-day windows. Reuse of the same validation window and many likely variants raises overfitting concerns.",
+    "doubts": [
+     "Validation N=34 and only 12 blocks; CI includes zero/positive but median -48.7%, so no reliable edge.",
+     "Underperforms the no-condition baseline in both train and validation, suggesting the condition adds no value.",
+     "Cost realism failed because all validation trades were earnings-event trades and stricter lower bound was -42%.",
+     "Worst trade -99.9% and worst window -631% show ruinous tail risk for a long straddle.",
+     "Train had 107 stale implied vol drops; this may bias the surviving sample.",
+     "Same validation window reused and many variants tested creates multiple-testing/overfitting risk.",
+     "No specific strike selection, option pricing/greeks, or bid-ask spread modeling was tested, so results may not reflect executable straddles."
+    ],
+    "budget_hit": false
+   },
+   "finished": "2026-10-11T19:47:10Z"
+  },
+  "verdict": {
+   "status": "done",
+   "result": {
+    "verdict": "kill",
+    "reason": "validation mean <= 0 with enough evidence",
+    "headline": {
+     "n": 34,
+     "mean": -0.18375730888503042,
+     "ci_low": -0.36177584020641723,
+     "paired_ci_low": -0.31729525176947054
+    },
+    "downgrades": []
+   },
+   "finished": "2026-10-11T19:47:10Z"
+  },
+  "report": {
+   "status": "done",
+   "result": {
+    "path": "D:\\zeesh\\projects\\trading-swarm\\.claude\\worktrees\\demo-694260\\runs\\audits\\before-straddle-buy\\report.md",
+    "prose_included": true
+   },
+   "finished": "2026-10-11T19:47:12Z"
+  }
+ },
+ "started": "2026-10-11T19:46:41Z"
+}
