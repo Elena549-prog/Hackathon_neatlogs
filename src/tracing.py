@@ -71,13 +71,13 @@ def _text(value):
     return value if isinstance(value, str) else json.dumps(value, default=str)
 
 
-def make_tracer(tags=("trading-swarm",)):
+def make_tracer(tags=("trading-swarm",), workflow_name="trading-swarm"):
     """Call before the OpenAI/Anthropic SDKs are imported, so neatlogs can instrument them."""
     key = os.environ.get("NEATLOGS_API_KEY")
     if not key:
         print("NEATLOGS_API_KEY not set: spans are kept locally only, nothing is sent to neatlogs.")
         return Tracer()
     import neatlogs
-    neatlogs.init(api_key=key, workflow_name="trading-swarm", tags=list(tags),
+    neatlogs.init(api_key=key, workflow_name=workflow_name, tags=list(tags),
                   instrumentations=["openai", "anthropic"])
     return Tracer(neatlogs.trace, neatlogs.flush)
