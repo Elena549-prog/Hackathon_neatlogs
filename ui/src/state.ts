@@ -1,9 +1,23 @@
 // Pure reducer: folds audit events into screen state. Every panel renders only this state.
 // The UI computes nothing itself except the running totals of llm_call events (section 16).
 import type { Agent, AuditEvent, BacktestResultEvent, BaselineStats, EquityPoint, Stats, VerdictEvent } from "./events";
+import { int, usd } from "./fmt";
 
 export type AgentStatus = "idle" | "active" | "done" | "error";
 export const agentOrder: Agent[] = ["planner", "researcher", "mathematician", "naysayer", "reporter"];
+export const AGENT_LABEL: Record<Agent, string> = {
+  planner: "Planner", researcher: "Researcher", mathematician: "Mathematician", naysayer: "Naysayer", reporter: "Reporter", triage: "Triage",
+};
+
+/** One line of the activity feed under the agent graph (spec 16, item 3). */
+export interface FeedLine {
+  seq: number;
+  ts: string;
+  agent: Agent | null;
+  text: string;
+  tone: "info" | "ok" | "bad" | "injected";
+}
+const FEED_MAX = 80;
 
 /** One follow-up card: the Naysayer's request, then the Mathematician's result merged in by id. */
 export interface Followup {
@@ -35,6 +49,7 @@ export interface UiState {
   followupsRun: number;
   checks: { check: string; passed: boolean; value: unknown; note: string }[];
   recoveries: { failed: string; action: string; injected: boolean }[];
+  feed: FeedLine[];
   verdict: VerdictEvent["payload"] | null;
   report: { path: string; traceId: string | null } | null;
   meters: { llmCalls: number; budget: number; promptTokens: number; completionTokens: number; costUsd: number };
@@ -62,6 +77,7 @@ export const initialState: UiState = {
   followupsRun: 0,
   checks: [],
   recoveries: [],
+  feed: [],
   verdict: null,
   report: null,
   meters: { llmCalls: 0, budget: 8, promptTokens: 0, completionTokens: 0, costUsd: 0 },
@@ -98,7 +114,48 @@ function summaryField(summary: unknown, field: string): string | null {
   return null;
 }
 
+const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+
+function argsText(args: unknown): string {
+  if (args && typeof args === "object") return Object.entries(args as Record<string, unknown>).map(([k, v]) => `${k}=${String(v)}`).join(", ");
+  return args == null ? "" : String(args);
+}
+
+/** The feed line an event adds, or null for events other panels already show (checks, results, verdict). */
+function feedLine(e: AuditEvent): Pick<FeedLine, "text" | "tone"> | null {
+  switch (e.type) {
+    case "agent_started":
+      return { text: `started ${e.payload.step}`, tone: "info" };
+    case "agent_finished":
+      return e.payload.status === "error"
+        ? { text: `failed ${e.payload.step}`, tone: "bad" }
+        : { text: `finished ${e.payload.step} in ${secs(e.payload.duration_ms)}`, tone: "ok" };
+    case "llm_call":
+      return { text: `${e.payload.model} · ${int(e.payload.prompt_tokens + e.payload.completion_tokens)} tokens · ${usd(e.payload.cost_usd)}`, tone: "info" };
+    case "tool_called":
+      return { text: `${e.payload.tool}(${argsText(e.payload.args)})`, tone: "info" };
+    case "tool_result":
+      return { text: `${e.payload.tool} ${e.payload.ok ? "ok" : "failed"} in ${secs(e.payload.duration_ms)} · ${e.payload.summary}`, tone: e.payload.ok ? "ok" : "bad" };
+    case "data_progress":
+      return { text: `data ${e.payload.percent}% · ${e.payload.what}`, tone: "info" };
+    case "followup_requested":
+      return { text: `asks the Mathematician for ${e.payload.followup}`, tone: "info" };
+    case "recovered":
+      return { text: `recovered (${e.payload.injected ? "INJECTED" : "REAL"}): ${e.payload.failed} → ${e.payload.action}`, tone: e.payload.injected ? "injected" : "bad" };
+    case "error":
+      return { text: `${e.payload.step}: ${e.payload.message}`, tone: "bad" };
+    default:
+      return null;
+  }
+}
+
 export function reduce(prev: UiState, e: AuditEvent): UiState {
+  const s = apply(prev, e);
+  const line = feedLine(e);
+  return line ? { ...s, feed: [...s.feed, { seq: e.seq, ts: e.ts, agent: e.agent, ...line }].slice(-FEED_MAX) } : s;
+}
+
+function apply(prev: UiState, e: AuditEvent): UiState {
   const s: UiState = { ...prev, lastSeq: e.seq, lastTs: e.ts };
   switch (e.type) {
     case "audit_started":

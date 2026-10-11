@@ -4,12 +4,26 @@ import type { AuditSummary } from "./events";
 import { initialState, reduce, type UiState } from "./state";
 import { listAudits, openEvents } from "./stream";
 
-export const NO_RECORDING = "No recording for this idea. Record one with the auditor first.";
 const SYNTHETIC_PREFIX = "SYNTHETIC FIXTURE";
+const SYNTHETIC_WRAP = /^SYNTHETIC FIXTURE:\s*|\s*\(not a real audit\)$/gi;
 const MIN_QUERY = 3;
 
 /** The development fixture labels itself through its idea text (scripts/synthetic_audit.py). */
 export const isSynthetic = (idea: string): boolean => idea.startsWith(SYNTHETIC_PREFIX);
+
+/** The idea as a person typed it: the fixture's label wrapper removed (the SYNTHETIC pill says that instead). */
+export const displayIdea = (idea: string): string => idea.replace(SYNTHETIC_WRAP, "").trim();
+
+/** Comparison key: case and spacing do not matter, nothing else is fuzzy. */
+export const ideaKey = (idea: string): string => displayIdea(idea).toLowerCase().replace(/\s+/g, " ");
+
+/** Actionable message for an idea with no recording: names what can be replayed. */
+export function noRecording(text: string, audits: AuditSummary[]): string {
+  const ideas = [...new Set(audits.map((a) => displayIdea(a.idea)))];
+  return ideas.length
+    ? `No recording of "${text.trim()}". Recorded ideas: ${ideas.join("; ")}.`
+    : "No recordings yet. Record the demo ideas with scripts/demo_audits.py, then reload this page.";
+}
 
 /** Honesty label for the command bar and the stamp: synthetic fixture, fake-LLM run, or none for a real run. */
 export function runLabel(idea: string, provider: string | null): string | null {
@@ -18,14 +32,12 @@ export function runLabel(idea: string, provider: string | null): string | null {
   return null;
 }
 
-/** The recording to play for a typed idea or chip: a real recording wins over the synthetic fixture. */
+/** The recording to play for a typed idea or chip: same idea only (no partial matches, so "buy" never plays
+ *  the dips audit); a real recording wins over the synthetic fixture; the server lists newest first. */
 export function pickAudit(audits: AuditSummary[], text: string): AuditSummary | null {
-  const t = text.trim().toLowerCase();
-  if (t.length < MIN_QUERY) return null;
-  const matches = audits.filter((a) => {
-    const i = a.idea.toLowerCase();
-    return i.includes(t) || t.includes(i);
-  });
+  const k = ideaKey(text);
+  if (k.length < MIN_QUERY) return null;
+  const matches = audits.filter((a) => ideaKey(a.idea) === k);
   return matches.find((a) => !isSynthetic(a.idea)) ?? matches[0] ?? null;
 }
 
@@ -42,6 +54,7 @@ export interface AuditSession {
   reset: () => void;
   currentAuditId: string | null;
   submitIdea: (text: string) => void;
+  dismissError: () => void;
 }
 
 export function useAudit(): AuditSession {
@@ -55,7 +68,12 @@ export function useAudit(): AuditSession {
   stateRef.current = state;
 
   useEffect(() => {
-    listAudits().then(setAudits).catch(() => setAudits([]));
+    listAudits()
+      .then(setAudits)
+      .catch((err: Error) => {
+        setAudits([]);
+        setState((s) => ({ ...s, errors: [...s.errors, `Could not load the recordings (${err.message}). Is the server running?`] }));
+      });
     return () => closeRef.current?.();
   }, []);
 
@@ -117,10 +135,12 @@ export function useAudit(): AuditSession {
       if (!text.trim()) return;
       const found = pickAudit(audits, text);
       if (found) play(found.audit_id);
-      else setState((s) => ({ ...s, errors: [...s.errors, NO_RECORDING] }));
+      else setState((s) => ({ ...s, errors: [...s.errors, noRecording(text, audits)] }));
     },
     [audits, play],
   );
 
-  return { state, audits, mode: "replay", speed, setSpeed, playing, play, pause, resume, reset, currentAuditId, submitIdea };
+  const dismissError = useCallback(() => setState((s) => ({ ...s, errors: [] })), []);
+
+  return { state, audits, mode: "replay", speed, setSpeed, playing, play, pause, resume, reset, currentAuditId, submitIdea, dismissError };
 }
