@@ -1,7 +1,8 @@
 """Audit orchestrator (AUDITOR_SPEC sections 4, 7, 8, 9, 16).
 
 idea -> Planner (frozen plan v0) -> Researcher (data tools) -> Mathematician (backtest, baselines, statistics)
--> coded checks + one Naysayer critique -> verdict rules -> template report (+ optional Reporter prose).
+-> coded checks + Naysayer call 1 (doubts, up to 3 follow-ups) -> Mathematician runs the follow-ups on v0
+-> Naysayer call 2 (final critique) -> verdict rules -> template report (+ optional Reporter prose).
 Every step writes its result to state.json before the next starts; --resume continues from the last finished
 step and never re-plans. Every UI element is driven by the events appended to events.jsonl.
 """
@@ -15,14 +16,15 @@ import pandas as pd
 
 from src.llm import LLMError
 
-from . import agents, backtest, checks, report as report_mod, verdict as verdict_mod
+from . import agents, backtest, checks, followups as followups_mod, report as report_mod, verdict as verdict_mod
 from .data import build_features, coverage as coverage_of
 from .eventlog import EventLog
 from .plan import plan_hash, validate, what_tested
 from .universe import ALL, GROUPS, MARKET, SMALL_GROUPS
 
 LLM_BUDGET, NON_REPORTER_CAP = 8, 7
-STEPS = ("plan", "data", "backtest", "critique", "verdict", "report")
+STEPS = ("plan", "data", "backtest", "choose", "followups", "critique", "verdict", "report")
+SPLITS = ("train", "validation")
 
 
 class AuditError(Exception):
@@ -112,8 +114,8 @@ def _no_nan(v):
 
 
 class Audit:
-    def __init__(self, idea, audit_id, llm, tracer, root, cache_dir, fetchers, fault, resume, provider):
-        self.audit_id, self.llm, self.tracer = audit_id, llm, tracer
+    def __init__(self, idea, audit_id, llm, tracer, root, cache_dir, fetchers, fault, resume, provider, with_followups=True):
+        self.audit_id, self.llm, self.tracer, self.with_followups = audit_id, llm, tracer, with_followups
         self.root, self.cache_dir, self.fetchers = Path(root), Path(cache_dir), fetchers
         self.fault, self.provider = fault, provider
         self.dir = self.root / audit_id
@@ -210,9 +212,11 @@ class Audit:
                 self.step = "backtest"
                 if not self.state.done("backtest"):
                     self.step_backtest()
-                self.step = "critique"
-                if not self.state.done("critique"):
-                    self.step_critique()
+                for step, fn in (("choose", self.step_choose), ("followups", self.step_followups),
+                                 ("critique", self.step_critique)):
+                    self.step = step
+                    if not self.state.done(step):
+                        fn()
             self.step = "verdict"
             if not self.state.done("verdict"):
                 self.step_verdict(cannot)
@@ -333,10 +337,11 @@ class Audit:
         calendar = d["market"]["SPY"].index
         with self.agent("mathematician", "backtest") as a:
             base, drops, trades = {}, {}, {}
-            for split in ("train", "validation"):
+            for split in SPLITS:
                 t, dr = backtest.run_backtest(prices, feats, plan, earnings, split)
                 trades[split], drops[split] = t, dr
                 base[split] = checks.stats(t, calendar)
+            d["trades"] = trades
             setups_val = backtest.select_setups(feats, plan, "validation")
             checks.assert_no_leakage(setups_val["date"])
             for t in trades.values():
@@ -381,18 +386,69 @@ class Audit:
              if self.state.done("data") else {}}
         r.update(self.state.result("backtest"))
         r["followup_downgrades"] = []
-        if self.state.done("critique"):
-            r["checks"] = self.state.result("critique")["checks"]
+        if self.state.done("choose"):
+            r["checks"] = self.state.result("choose")["checks"]
+        if self.state.done("followups"):
+            r["followups"] = self.state.result("followups")["runs"]
+            r["followup_downgrades"] = [{"cause": f["cause"]} for f in r["followups"] if f["downgrade"]]
         return r
 
-    def step_critique(self):
+    def step_choose(self):
+        """Coded checks, then Naysayer call 1: doubts and up to 3 follow-ups (none with --no-followups, the M1 run)."""
         results = self._results()
+        plan = results["plan"]
         window_count = report_mod.registry_count(self.root / "registry.jsonl")
         coded = checks.coded_checks(results, window_count)
-        with self.agent("naysayer", "critique") as a:
+        with self.agent("naysayer", "choose") as a:
             for c in coded:
                 self.log.emit("check_result", "naysayer", _clean(c))
             results["checks"] = coded
+            doubts, requested, budget_hit, note = [], [], False, None
+            if not self.with_followups:
+                note = "follow-ups disabled for this run (--no-followups, the M1 behaviour)"
+            else:
+                try:
+                    out = self.call("naysayer", agents.run_naysayer_followups, agents.naysayer_context(results))
+                    doubts, requested = out["doubts"], out["followups"]
+                except BudgetExceeded as e:
+                    budget_hit, note = True, "LLM call cap hit before the follow-up choice: %s" % e
+                except LLMError as e:
+                    note = "Naysayer follow-up call failed, no follow-ups run: %s" % e
+            chosen, ignored = followups_mod.choose(requested, plan["family"])
+            for f in chosen:
+                self.log.emit("followup_requested", "naysayer", {"followup": f["id"], "reason": f["reason"]})
+            a.summary = {"doubts": doubts, "followups": chosen, "ignored": ignored, "note": note}
+        self.state.finish("choose", _clean({"checks": coded, "window_count": window_count, "doubts": doubts,
+                                            "chosen": chosen, "ignored": ignored, "note": note, "budget_hit": budget_hit,
+                                            "disabled": not self.with_followups}))
+
+    def step_followups(self):
+        """The Mathematician runs the chosen follow-ups on v0 in code (no LLM call)."""
+        chosen = self.state.result("choose")["chosen"]
+        runs = []
+        if chosen:
+            plan, bt, d = self.state.result("plan")["plan"], self.state.result("backtest"), self.data
+            trades = d.get("trades") or {s: backtest.run_backtest(d["prices"], d["features"], plan, d["earnings"], s)[0]
+                                         for s in SPLITS}                  # on resume the trades are rebuilt
+            calendar = d["market"]["SPY"].index
+            baseline = _clean(dict(bt["baseline"]["validation"], paired_ci_low=bt["baseline"]["paired_ci_low"]))
+            with self.agent("mathematician", "followups") as a:
+                for f in chosen:
+                    with self.tracer.span("tool", "followup", agent="mathematician", step="followups", followup=f["id"],
+                                          audit_id=self.audit_id) as rec:
+                        r = followups_mod.run(f["id"], trades, plan, bt["base"], d["prices"], d["features"], d["earnings"], calendar)
+                        rec["output"] = r["result"]
+                    r = _clean(dict(r, reason=f["reason"]))
+                    self.log.emit("backtest_result", "mathematician", dict(
+                        r, run=f["id"], baseline=baseline, equity_train=[], equity_validation=[], histogram={}))
+                    runs.append(r)
+                a.summary = {"followups": [{k: r[k] for k in ("id", "result", "downgrade")} for r in runs]}
+        self.state.finish("followups", {"runs": runs})
+
+    def step_critique(self):
+        """Naysayer call 2: the final critique, with the follow-up results."""
+        results = self._results()
+        with self.agent("naysayer", "critique") as a:
             budget_hit, critique, doubts = False, "", []
             try:
                 out = self.call("naysayer", agents.run_naysayer, agents.naysayer_context(results))
@@ -402,8 +458,7 @@ class Audit:
             except LLMError as e:
                 critique = "Naysayer call failed: %s" % e
             a.summary = {"doubts": doubts, "critique": critique}
-        self.state.finish("critique", {"checks": _clean(coded), "critique": critique, "doubts": doubts,
-                                       "budget_hit": budget_hit, "window_count": window_count})
+        self.state.finish("critique", {"critique": critique, "doubts": doubts, "budget_hit": budget_hit})
 
     def step_verdict(self, cannot):
         if cannot:
@@ -419,6 +474,8 @@ class Audit:
         plan = plan_r["plan"]
         bt = self.state.result("backtest") if self.state.done("backtest") else {}
         cr = self.state.result("critique") if self.state.done("critique") else {}
+        ch = self.state.result("choose") if self.state.done("choose") else {}
+        runs = self.state.result("followups")["runs"] if self.state.done("followups") else []
         cost = self.state.data["cost"]
         group = plan.get("universe_group")
         ctx = {"idea": self.idea, "audit_id": self.audit_id, "plan": plan, "plan_hash": plan_r["hash"],
@@ -426,15 +483,18 @@ class Audit:
                "coverage": self.state.result("data")["coverage"] if self.state.done("data") else {},
                "drops": bt.get("drops", {}), "base": bt.get("base", {}), "baseline": bt.get("baseline", {}),
                "random_baseline": bt.get("random_baseline", {}), "stricter": bt.get("stricter"), "tail": bt.get("tail", {}),
-               "checks": cr.get("checks", []), "followups": [], "window_count": cr.get("window_count", 0),
+               "checks": ch.get("checks", []), "followups": runs, "followups_ignored": ch.get("ignored", []),
+               "followups_note": ch.get("note"), "followups_disabled": bool(ch.get("disabled")),
+               "window_count": ch.get("window_count", 0), "doubts": ch.get("doubts", []),
                "critique": cr.get("critique"), "prose": None, "recoveries": self.state.data["recoveries"],
                "cost": {"calls": self.state.data["llm_calls"], "prompt_tokens": cost["prompt_tokens"],
                         "completion_tokens": cost["completion_tokens"], "usd": cost["usd"]},
                "trace_id": getattr(self.tracer, "trace_id", None),
                "small_group_note": ("%s has %d tickers: usually inconclusive for lack of trades" % (group, len(GROUPS[group]))
                                     if group in SMALL_GROUPS else None),
-               "earnings_caveat": any(f.startswith("earnings") or f == "days_since_earnings" for f in (plan.get("conditions") or {})),
-               "fake_llm": self.provider == "fake", "budget_hit": bool(cr.get("budget_hit")),
+               "earnings_caveat": any(f.startswith("earnings") or f == "days_since_earnings" for f in (plan.get("conditions") or {}))
+                                  or any(r["id"] == "F1" and not r.get("skipped") for r in runs),
+               "fake_llm": self.provider == "fake", "budget_hit": bool(cr.get("budget_hit") or ch.get("budget_hit")),
                "fault_note": ("Fault requested: %s, but no DoltHub fetch happens for %s, so nothing was injected."
                               % (self.fault, plan.get("family"))
                               if self.fault == "dolthub_timeout" and not str(plan.get("family", "")).startswith("straddle")
@@ -454,13 +514,16 @@ class Audit:
             path.write_text(report_mod.render(ctx), encoding="utf-8")
             report_mod.append_registry(self.root / "registry.jsonl", {
                 "date": _now()[:10], "audit_id": self.audit_id, "idea": self.idea, "family": plan.get("family"),
-                "universe_group": group, "plan_hash": plan_r["hash"], "verdict": v["verdict"], "provider": self.provider})
+                "universe_group": group, "plan_hash": plan_r["hash"], "verdict": v["verdict"], "provider": self.provider,
+                "followups": [r["id"] for r in runs]})
             self.log.emit("report_ready", "reporter", {"path": str(path), "trace_id": getattr(self.tracer, "trace_id", None),
                                                       "prose_included": prose is not None})
             a.summary = {"prose_included": prose is not None}
         self.state.finish("report", {"path": str(path), "prose_included": prose is not None})
 
 
-def run_audit(idea, audit_id, llm, tracer, *, root, cache_dir, fetchers, fault=None, resume=False, provider="deepseek"):
-    """Run (or resume) one audit. Returns {"verdict", "report_path", "events_path", "state"}."""
-    return Audit(idea, audit_id, llm, tracer, root, cache_dir, fetchers, fault, resume, provider).run()
+def run_audit(idea, audit_id, llm, tracer, *, root, cache_dir, fetchers, fault=None, resume=False, provider="deepseek",
+              followups=True):
+    """Run (or resume) one audit. Returns {"verdict", "report_path", "events_path", "state"}.
+    followups=False skips Naysayer call 1 and the follow-ups: the M1 behaviour, for the before/after comparison."""
+    return Audit(idea, audit_id, llm, tracer, root, cache_dir, fetchers, fault, resume, provider, followups).run()

@@ -58,6 +58,13 @@ def plan_from_idea(idea):
     return base
 
 
+def fake_followups():
+    """Asks for all four: the cap of 3 and the stock_long-only F3 rule then decide what runs."""
+    return {"doubts": ["%s: one validation window" % FAKE_PREFIX],
+            "followups": [{"id": f, "reason": "%s: keyword rule, every follow-up requested" % FAKE_PREFIX}
+                          for f in ("F1", "F2", "F3", "F4")]}
+
+
 def make_fake_llm(tracer):
     """Same signature as src.llm.make_llm's result: llm(agent, system, prompt, schema, **tags)."""
     price_in, price_out = PRICES["deepseek-flash"]
@@ -71,6 +78,8 @@ def make_fake_llm(tracer):
             if agent == "planner":
                 body = json.loads(prompt)
                 out = plan_from_idea(body.get("idea", ""))
+            elif agent == "naysayer" and tags.get("step") == "followups":
+                out = fake_followups()
             elif agent == "naysayer":
                 ctx = json.loads(prompt) if prompt.startswith("{") else {}
                 val = ((ctx.get("base") or {}).get("validation") or {})
@@ -116,6 +125,8 @@ class FakeAuditorClient:
             text = queue.pop(0)
         elif role == "planner":
             text = json.dumps(plan_from_idea(json.loads(user).get("idea", "")))
+        elif role == "naysayer" and "Follow-up menu" in system:
+            text = json.dumps(fake_followups())
         elif role == "naysayer":
             text = json.dumps({"critique": "%s: see the coded checks." % FAKE_PREFIX, "doubts": ["%s: one window" % FAKE_PREFIX]})
         else:

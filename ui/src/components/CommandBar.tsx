@@ -22,7 +22,7 @@ export function CommandBar({ state, mode, chips, onSubmit, controls }: {
       <div className="flex items-center gap-4">
         <div className="flex items-baseline gap-3">
           <h1 className="text-base font-semibold tracking-tight">Strategy Auditor</h1>
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">mission control</span>
+          <span className="hidden font-mono text-[11px] uppercase tracking-[0.18em] text-muted 2xl:inline">mission control</span>
         </div>
         <form onSubmit={submit} className="flex min-w-0 flex-1 items-center gap-2">
           <input

@@ -1,56 +1,87 @@
 # Building the business plan in cfo.ai
 
-The model is ready as an Excel workbook: `results/business_model.xlsx`. cfo.ai's assistant, Ari, can import a workbook and rebuild it as a native cfo.ai model, turning the assumptions into Variables and the two cases into Scenarios (cfo.ai docs: "Import a spreadsheet model").
+The model is an Excel workbook, `results/business_model.xlsx`, priced **per audit** (AUDITOR_SPEC section 13): one audit = one trading idea in, one evidence-backed verdict out. cfo.ai's assistant, Ari, can import a workbook and rebuild it as a native cfo.ai model, turning the assumptions into Variables and the two cases into Scenarios (cfo.ai docs: "Import a spreadsheet model").
+
+Rebuild it with `python scripts/spikes/build_business_model.py results/business_model.xlsx`; check it with `python scripts/spikes/verify_model.py results/business_model.xlsx`.
+
+## The single cost variable
+
+**`Assumptions!B5`, "LLM cost per audit (USD)" = $0.048, ESTIMATE.** Every LLM cost in the model is a formula on this one cell, in both scenarios.
+
+It is estimated bottom-up from the code on the `Cost_Estimate` sheet, because no real DeepSeek audit has run yet:
+
+| Call (spec section 4, at M2) | Model | Calls per audit | Prompt tokens | Completion tokens | $ per call |
+|---|---|---|---|---|---|
+| Planner: idea to plan v0 | deepseek-v4-pro, thinking | 1 | 1,220 | 3,000 | 0.0135 |
+| Planner: fix after an invalid plan | deepseek-v4-pro, thinking | 0.1 (10% chance) | 1,280 | 3,000 | 0.0136 |
+| Naysayer 1: doubts, choose follow-ups | deepseek-v4-pro, thinking | 1 | 1,280 | 3,000 | 0.0136 |
+| Naysayer 2: final critique | deepseek-v4-pro, thinking | 1 | 1,360 | 3,000 | 0.0137 |
+| Reporter: prose | deepseek-flash, no thinking | 1 | 2,670 | 300 | 0.0012 |
+| **Total** | | **4.1** (budget 8) | | | **0.0433** |
+
+Plus 10% for retries (billed, spec section 8): **$0.0476 per audit**, typed as $0.048.
+
+- Prices: `src/llm.py` `PRICES`, DeepSeek peak cache-miss ($1.32 / $3.96 per 1M tokens for v4-pro, $0.30 / $1.20 for flash), so it is an upper bound. Off-peak is half: $0.024.
+- Prompt tokens = characters / 4. System prompts (including the M2 follow-up prompt, `NAYSAYER_FOLLOWUPS_SYSTEM`) are read from `src/auditor/agents.py` at build time, plus the JSON-schema suffix `src/llm.py` appends. User prompts were measured by running the audit loop with the fake LLM on a synthetic 50-ticker market for the three demo ideas, then rounded up.
+- Completion tokens: 3,000 per thinking call (thinking + JSON reply) is an assumption; the plausible range is 1,500 to 4,000.
+- Sanity check: the swarm measured $0.038 per decision with two v4-pro thinking calls (`results/README.md`), about $0.019 per thinking call. At that rate an audit (3.1 thinking calls + Reporter) costs about $0.060. The bottom-up estimate is 0.8x of that: the same few cents.
+- Worst case, all 8 budgeted calls: $0.105 per audit.
+- Data costs $0 (Yahoo Finance, DoltHub public data). Hosting is a fixed $50 a month (one small VM), not a per-audit cost.
+
+**After M2, update `Assumptions!B5` with the measured figure:** the mean cost of the demo audits from section "9. Cost and trace" of each `report.md` (or `cost.usd` in its `state.json`), cross-checked against the neatlogs traces. Use the M2 runs: M1 makes one Naysayer call, not two, so M1 runs come in about one thinking call (~$0.014) lower. In cfo.ai, change the matching Variable instead. Everything downstream recalculates.
 
 ## What's in the workbook
 
 | Sheet | Contents |
 |---|---|
-| Summary | 24-month results for both scenarios: customers, MRR, gross margin, operating profit, lowest cash, runway, break-even, funding need, LTV:CAC |
-| Assumptions | Every input with its source. Blue = input, yellow = owner estimate to confirm. Column B = Base, column C = Growth |
-| Model_Base, Model_Growth | Monthly model: customers, revenue, payment fees, LLM and Laya cost, gross profit, marketing, fixed costs, operating profit, cash |
-| Unit_Economics | One watchlist per month: contribution margin, CAC payback, LTV, LTV:CAC |
+| Summary | 12-month results for both scenarios: cost and margin per audit and per subscriber, LTV:CAC, users, audits, revenue, operating profit, lowest cash, runway, break-even, funding need |
+| Assumptions | The cost variable (B5), then every other input with its source. Blue = input, yellow = estimate or hypothesis to confirm. Column B = Base, column C = Growth |
+| Cost_Estimate | How B5 was estimated: prices, token assumptions, per-call table, swarm sanity check |
+| Model_Base, Model_Growth | Monthly model: users (subscribers and pay-per-audit), audits, revenue by plan, payment fees, LLM, data, gross profit, marketing, fixed costs, operating profit, cash |
+| Unit_Economics | One audit (pay per audit), one subscriber per month, blended user: contribution, gross margin, CAC payback, LTV, LTV:CAC |
 
-Every output is a formula; there are no typed-in results. All 1,010 formulas were evaluated (with pycel) and checked against an independent Python calculation of the same model; they match. The file has no cached values, because it was written by a script: Excel computes them when it opens the file, and Ari reads the formulas.
+All 763 formulas evaluate without errors (pycel), and the key outputs match an independent Python calculation of the same model. The file has no cached values, because it was written by a script: Excel computes them when it opens the file, and Ari reads the formulas.
 
-## Measured vs assumed
+## Pricing hypotheses and other inputs
 
-- **Measured:** LLM cost per decision, $0.038 (upper bound at DeepSeek peak prices, from the validation run in `results/README.md`, which used two Planner rounds per setup; the conditional second round should lower it). Watcher share of days, 12.3% (train split).
+- **Hypotheses (yellow):** $2 per audit, sold in packs of 5 (one card charge per $10 pack, so Stripe's $0.30 fee takes 3% instead of 15%); a hobbyist plan at $15 a month for 20 audits. 40% of users on the plan, running 10 audits a month; pay-per-audit users run 3.
+- **Owner estimates (yellow):** new users, growth, churn, CAC, team cost, starting cash ($25,000), hosting. Change them before presenting if you have better numbers.
 - **Standard pricing:** card fees, 2.9% + $0.30 (Stripe US).
-- **Owner estimates (yellow):** price ($19 per watchlist per month), new customers, growth, churn, CAC, hosting, neatlogs, team cost, starting cash. Change them before presenting the plan if you have better numbers.
 
 ## Results with the current assumptions
 
 | | Base | Growth |
 |---|---|---|
-| Customers, month 24 | 238 | 1,504 |
-| MRR, month 24 | $4,516 | $28,569 |
-| Contribution margin per watchlist | $17.66 (93%) | $17.66 (93%) |
-| LTV to CAC | 7.4x | 7.4x |
-| Break-even month | 17 | 15 |
-| Lowest cash balance | $6,538 | −$28,519 |
-| Funding needed to never go below zero | $0 | $28,519 |
+| Contribution per audit (pay per audit) | $1.83 (91.7%) | $1.83 (91.7%) |
+| Contribution per subscriber per month | $13.79 (91.9%) | $13.79 (91.9%) |
+| LTV to CAC | 3.7x | 3.7x |
+| Paying users, month 12 | 110 | 416 |
+| Revenue, month 12 | $1,055 | $3,994 |
+| Operating profit, months 1-12 | −$22,973 | −$72,894 |
+| Cash, end of month 12 | $2,027 (about 1.3 months left) | −$47,894 (below zero in month 4) |
+| Funding needed to never go below zero | $0 | $47,894 |
 
-Reading: the price watcher (section 15 of `docs/SWARM_SPEC.md`) wakes the swarm on about 12% of days, so a watchlist costs about $0.49 a month in LLM calls instead of $3.99. Base survives on $25,000. Growth needs about $28,500 of outside funding before it breaks even in month 15.
-
-Before the watcher, the same model gave $14.16 (74.5%) contribution margin, 5.9x LTV:CAC, and a $43,130 funding need for Growth.
+Reading: at about 5 cents an audit, LLM cost is 2.4% of the $2 price; card fees cost more. The cost per audit would have to reach $1.88 before an audit stops contributing, so the estimate can be wrong by a lot without changing the story. The plan is decided by users, churn, CAC and team cost, not by inference. Neither scenario breaks even within 12 months on these owner estimates.
 
 ## Steps (Zeeshan)
 
 1. Sign up at cfo.ai/neathacks. **Cancel the subscription immediately** in Settings → Billing, as the hackathon page instructs. The neatHack team provides credits.
-2. Optional: open `results/business_model.xlsx` in Excel, change any yellow assumption, and save. Saving in Excel also stores the computed values.
+2. Optional: open `results/business_model.xlsx` in Excel, change any yellow input, and save. Saving in Excel also stores the computed values.
 3. Start a conversation with Ari, attach the workbook, and paste:
 
-   > Import this workbook into cfo.ai as a native Model. It is a 24-month plan for a subscription product priced per watchlist. Make every input on the Assumptions sheet a Variable. Make column B (Base) the Main scenario and column C (Growth) a second Scenario. Keep the monthly time grain starting at month 1, with no Actuals.
+   > Import this workbook into cfo.ai as a native Model. It is a 12-month plan for the Strategy Auditor, a research tool priced per audit: pay per audit, or a hobbyist plan with a monthly allowance of audits. Make every input on the Assumptions sheet a Variable. Name the Variable from cell B5 "LLM cost per audit (USD)", keep it as one Variable shared by both scenarios, and label it ESTIMATE, with the note from cell E5. Make column B (Base) the Main scenario and column C (Growth) a second Scenario. Keep the monthly time grain starting at month 1, with no Actuals. Keep the Cost_Estimate sheet as documentation of how the estimate was built.
 
 4. Check the rebuild, paste:
 
-   > Reconcile the rebuilt revenue, gross profit, operating profit and ending cash to the attached workbook for months 12 and 24 in both scenarios, and list any differences.
+   > Reconcile the rebuilt revenue, LLM cost, gross profit, operating profit and ending cash to the attached workbook for months 6 and 12 in both scenarios, and the Unit_Economics contribution per audit and per subscriber, and list any differences.
 
-5. Ask Ari for the runway view and a short plan summary:
+5. Ask Ari for the per-audit view, the runway, and a short plan summary:
 
-   > Show runway and the funding needed for each scenario, and draft a one-page business plan summary from this Model.
+   > Show unit economics per audit and per subscriber, runway and the funding needed for each scenario, and how gross margin per audit changes if LLM cost per audit is 2x and 5x the estimate. Then draft a one-page business plan summary from this Model, stating that LLM cost per audit is an estimate until it is measured.
 
 6. Share the model or page as a read-only link and put the link, plus a screenshot, in the submission. Save a PDF or screenshots to `results/` too.
+7. After M2: replace the cost Variable with the measured figure (see "The single cost variable" above) and ask Ari:
 
-**Done when:** the Model has both Scenarios, the reconciliation shows no differences, and the share link is in the submission.
+   > Update the Variable "LLM cost per audit (USD)" to <measured value>, measured from <n> real audits (neatlogs and the reports' cost sections). Remove the ESTIMATE label, note the source, and show what changed in the summary.
+
+**Done when:** the Model has both Scenarios and the single cost Variable, the reconciliation shows no differences, the share link is in the submission, and after M2 the cost Variable holds the measured figure.

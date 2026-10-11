@@ -9,6 +9,8 @@ the ticker, the date, or raw price levels.
 
     python -m src.swarm --split validation --limit 5     # smoke run
     python -m src.swarm --split validation               # baseline run
+    python -m src.swarm --split test --final-test        # the one test run, frozen config; never repeated
+    python -m src.swarm --split test --final-test --resume   # only to finish that run if it stopped
 """
 import argparse
 import json
@@ -26,6 +28,7 @@ MAX_ROUNDS = 2
 LOOKBACK = 20
 WATCH_SIGMA = 1.5   # wake the swarm when |1-day return| >= 1.5 x 20-day volatility (fires on ~12% of train days)
 SUMMARY_PATH = os.path.join("runs", "swarm_summary.md")
+TEST_RESULTS = [os.path.join("results", f) for f in ("swarm_test_summary.md", "swarm_test.jsonl")]
 
 
 def triggered(setup):
@@ -76,29 +79,47 @@ def decide(setup, market, llm, tracer):
             "plan": plan, "objections": objections}
 
 
-def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume=False):
+def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume=False, final_test=False):
     """Decide every setup in `split`, simulate approved trades, write JSONL. Returns the records.
 
     With workers > 1, setups are decided in parallel threads; lines are still written in
-    setup order. With resume, setups already in out_path without an error are kept as they
-    are and only the rest are decided. Output goes to a temp file that replaces out_path at
-    the end, so an interrupted run never destroys earlier results.
+    setup order. With resume, setups already in out_path (or in out_path.tmp, left by an
+    interrupted run) without an error are kept as they are and only the rest are decided.
+    Output goes to a temp file that replaces out_path at the end, so an interrupted run
+    never destroys earlier results. The test split needs final_test: one full run, never
+    a second one over an existing result.
     """
-    if split == "test":
-        raise SystemExit("The swarm step does not run on the test split.")
+    if split == "test" and not final_test:
+        raise SystemExit("The swarm runs on the test split only once, with --final-test.")
+    out_path = out_path or os.path.join("runs", "swarm_%s.jsonl" % split)
+    tmp_path = out_path + ".tmp"
+    if final_test:
+        if split != "test":
+            raise SystemExit("--final-test needs --split test.")
+        if limit:
+            raise SystemExit("--final-test is one full run: --limit is not allowed.")
+        for path in TEST_RESULTS:
+            if os.path.exists(path):
+                raise SystemExit("%s exists: the test split has been run. Do not run it again." % path)
+        for path in (out_path, tmp_path):
+            if os.path.exists(path) and not resume:
+                raise SystemExit("%s exists: use --resume to finish that run, never start a second one." % path)
     rows = market.setups[market.setups["split"] == split]
     if limit:
         rows = rows.head(limit)
-    out_path = out_path or os.path.join("runs", "swarm_%s.jsonl" % split)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
 
     done = {}
-    if resume and os.path.exists(out_path):
-        with open(out_path) as f:
-            for line in f:
-                r = json.loads(line)
-                if r["verdict"] != "error":
-                    done[(r["ticker"], r["date"])] = r
+    for path in (out_path, tmp_path) if resume else ():
+        if os.path.exists(path):
+            with open(path) as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:      # a last line cut off when the run was killed
+                        continue
+                    if r["verdict"] != "error":
+                        done[(r["ticker"], r["date"])] = r
 
     def one(setup):
         if (setup["ticker"], setup["date"]) in done:
@@ -122,7 +143,6 @@ def run(split, market, llm, tracer, limit=None, out_path=None, workers=1, resume
         return rec
 
     records = []
-    tmp_path = out_path + ".tmp"
     with open(tmp_path, "w") as f, ThreadPoolExecutor(max_workers=workers) as pool:
         for rec in pool.map(one, rows.to_dict("records")):   # map keeps setup order
             f.write(json.dumps(rec) + "\n")
@@ -173,17 +193,19 @@ def summarize(records, market, split, cost=0.0, seed=0):
     return "\n".join(lines) + "\n"
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--split", default="validation", choices=["train", "validation"])
+    parser.add_argument("--split", default="validation", choices=["train", "validation", "test"])
     parser.add_argument("--limit", type=int, help="only the first N setups (smoke run)")
     parser.add_argument("--out", help="JSONL path (default runs/swarm_<split>.jsonl)")
     parser.add_argument("--workers", type=int, default=1, help="setups decided in parallel")
     parser.add_argument("--resume", action="store_true",
                         help="keep finished setups from --out and re-decide only errors and missing ones")
+    parser.add_argument("--final-test", action="store_true",
+                        help="allow the one full run on --split test; refuses --limit and any existing test result")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "claude"],
                         help="deepseek needs DEEPSEEK_API_KEY; claude needs ANTHROPIC_API_KEY")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     from src.llm import make_llm
     from src.tools import load_market
@@ -192,7 +214,7 @@ def main():
     market = load_market()
     tracer = make_tracer(tags=("trading-swarm", "provider:" + args.provider))
     records = run(args.split, market, make_llm(tracer, args.provider), tracer, args.limit, args.out,
-                  args.workers, args.resume)
+                  args.workers, args.resume, final_test=args.final_test)
     tracer.flush()
     summary = summarize(records, market, args.split, cost=tracer.total_cost())
     with open(SUMMARY_PATH, "w") as f:

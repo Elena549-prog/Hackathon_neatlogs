@@ -70,6 +70,10 @@ def _backtest(rng, run, drift_train, drift_val):
             "histogram": {"edges": edges, "counts": [rng.randint(0, 40) for _ in range(22)]}}
 
 
+def _pct(x):
+    return "%+.2f%%" % (100 * x)
+
+
 def _llm(rng, model="deepseek-chat"):
     p, c = rng.randint(900, 2500), rng.randint(150, 700)
     return {"model": model, "prompt_tokens": p, "completion_tokens": c,
@@ -105,34 +109,69 @@ def write_synthetic_audit(dir, audit_id="synthetic-demo", seed=1):
     w.emit("agent_finished", "researcher", {"step": "data", "status": "ok", "duration_ms": 12000,
            "summary": {"coverage": "50 tickers, 2014-01-02 to 2026-07-29", "gaps": []}})
     w.emit("agent_started", "mathematician", {"step": "backtest"})
-    w.emit("backtest_result", "mathematician", _backtest(rng, "base", 0.0012, -0.0008), gap=3.5)
+    # Promising on the base rules (positive lower bounds), so the F2 rule below is a downgrade that applies.
+    base = _backtest(rng, "base", 0.009, 0.0041)
+    base["validation"].update(n=212, blocks=19, ci_low=0.0006)
+    base["baseline"]["paired_ci_low"] = 0.0003
+    val, train = base["validation"], base["train"]
+    w.emit("backtest_result", "mathematician", base, gap=3.5)
     w.emit("agent_finished", "mathematician", {"step": "backtest", "status": "ok", "duration_ms": 4200,
            "summary": "base run done"})
     w.emit("agent_started", "naysayer", {"step": "critique_1"})
-    w.emit("llm_call", "naysayer", _llm(rng, "deepseek-reasoner"))
-    for check, passed, value, note in (("evidence", True, 120, "n >= 30 and >= 6 blocks"),
-                                       ("leakage", True, 0, "no feature after the cutoff"),
-                                       ("decay", False, -0.002, "validation mean below train mean")):
+    # The 7 coded checks, notes worded like src/auditor/checks.py.
+    for check, passed, value, note in (
+            ("evidence", True, {"n": val["n"], "blocks": val["blocks"]},
+             "validation needs n >= 30 and at least 6 distinct 10-trading-day blocks"),
+            ("leakage", True, "2026-06-30", "no feature or trade date after 2026-06-30 (earnings features exempt, see caveat)"),
+            ("decay", False, {"train_mean": train["mean"], "validation_mean": val["mean"]},
+             "validation mean %s vs train mean %s" % (_pct(val["mean"]), _pct(train["mean"]))),
+            ("shared_window", True, 0, "0 earlier audit(s) used this validation window. About 5% of plans with no "
+             "real edge pass this test by chance; testing many variants of one idea raises that."),
+            ("cost_realism", True, None, "stock_long: no fees or slippage modeled"),
+            ("tail_risk", True, {"worst_trade": train["worst_trade"], "worst_window": train["worst_window"]},
+             "worst trade %s, worst 10-day window %s (train plus validation)"
+             % (_pct(train["worst_trade"]), _pct(train["worst_window"]))),
+            ("data_drops", True, {}, "setups dropped for exits past the cutoff or the data, stale implied vol, "
+             "missing earnings coverage")):
         w.emit("check_result", "naysayer", {"check": check, "passed": passed, "value": value, "note": note})
-    w.emit("followup_requested", "naysayer", {"followup": "F2", "reason": "train years may disagree"})
-    w.emit("followup_requested", "naysayer", {"followup": "F4", "reason": "one ticker may carry the result"})
+    w.emit("llm_call", "naysayer", _llm(rng, "deepseek-reasoner"))
+    # M2 contract: followup_requested for each pick, then a backtest_result with run F* carrying title, result,
+    # downgrade (the follow-up's rule was met) and cause.
+    picks = (("F1", "dip entries cluster around earnings gaps"),
+             ("F2", "validation is one regime; train years may disagree"),
+             ("F4", "a single mega-cap may carry the validation profit"))
+    for fid, reason in picks:
+        w.emit("followup_requested", "naysayer", {"followup": fid, "reason": reason})
     w.emit("agent_finished", "naysayer", {"step": "critique_1", "status": "ok", "duration_ms": 6000,
-           "summary": "doubts: decay out of sample; asked for F2 and F4"})
+           "summary": {"doubts": ["decay out of sample"], "followups": [f for f, _ in picks]}})
     w.emit("agent_started", "mathematician", {"step": "followups"})
-    for run in ("F2", "F4"):
-        w.emit("backtest_result", "mathematician", _backtest(rng, run, 0.001, -0.001))
+    total = val["mean"] * val["n"]
+    f2_cause = ("F2 per-year stability: the yearly train mean has the opposite sign to the validation mean "
+                "in more than half the train years")
+    runs = (("F1", "Earnings excluded", 173, 0.0033,
+             "validation mean +0.33% over 173 trades (39 left out: earnings in the holding window; 0: no earnings coverage)",
+             None),
+            ("F2", "Per-year stability", val["n"], val["mean"],
+             "train mean has the opposite sign to the validation mean (%s) in 7 of 12 train years" % _pct(val["mean"]),
+             f2_cause),
+            ("F4", "Concentration", 201, round((total - 0.098) / 201, 5),
+             "without the top-contributing ticker (+9.80%% of the %s summed validation return): validation mean %s "
+             "over 201 trades" % (_pct(total), _pct((total - 0.098) / 201)), None))
+    for fid, title, n, mean, result, cause in runs:
+        bt = _backtest(rng, fid, 0.009, mean)
+        bt["validation"].update(n=n, mean=mean)
+        bt.update(title=title, result=result, downgrade=cause is not None, cause=cause)
+        w.emit("backtest_result", "mathematician", bt)
     w.emit("agent_finished", "mathematician", {"step": "followups", "status": "ok", "duration_ms": 5100,
-           "summary": "F2, F4 done"})
+           "summary": "F1, F2, F4 done"})
     w.emit("agent_started", "naysayer", {"step": "critique_2"})
     w.emit("llm_call", "naysayer", _llm(rng, "deepseek-reasoner"))
     w.emit("agent_finished", "naysayer", {"step": "critique_2", "status": "ok", "duration_ms": 5000,
-           "summary": "final critique: no edge out of sample"})
-    base_event = next(json.loads(l) for l in w.lines if '"run": "base"' in l)
-    val = base_event["payload"]["validation"]
-    w.emit("verdict", None, {"verdict": "kill", "reason": "validation mean <= 0 with enough evidence",
+           "summary": "final critique: the edge is not stable across train years"})
+    w.emit("verdict", None, {"verdict": "inconclusive", "reason": "promising on the base rules, downgraded: " + f2_cause,
            "headline": {"n": val["n"], "mean": val["mean"], "ci_low": val["ci_low"],
-                        "paired_ci_low": base_event["payload"]["baseline"]["paired_ci_low"]},
-           "downgrades": []}, gap=1.0)
+                        "paired_ci_low": base["baseline"]["paired_ci_low"]},
+           "downgrades": [{"cause": f2_cause, "from": "promising", "to": "inconclusive"}]}, gap=1.0)
     w.emit("agent_started", "reporter", {"step": "report"})
     w.emit("llm_call", "reporter", _llm(rng, "deepseek-flash"))
     report = out / "report.md"

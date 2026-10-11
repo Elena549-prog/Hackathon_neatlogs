@@ -3,6 +3,7 @@ import { AgentGraph } from "./components/AgentGraph";
 import { CommandBar } from "./components/CommandBar";
 import { EquityCurves } from "./components/EquityCurves";
 import { FooterMeters } from "./components/FooterMeters";
+import { Objections } from "./components/Objections";
 import { Panel } from "./components/Panel";
 import { ReplayControls } from "./components/ReplayControls";
 import { VerdictStamp } from "./components/VerdictStamp";
@@ -37,15 +38,18 @@ export default function App() {
           />
         }
       />
-      <div className="grid min-h-0 grid-cols-[5fr_7fr] gap-3">
+      <div className="grid min-h-0 grid-cols-[minmax(0,7fr)_minmax(0,9fr)_minmax(0,6fr)] gap-3">
         <Panel title="Agents" right={state.lastAgent && <span className="font-mono text-[11px] text-muted">{state.lastAgent}</span>}>
           <AgentGraph state={state} reduced={reduced} />
         </Panel>
         <Panel title="Evidence" right={state.equityRun && <span className="font-mono text-[11px] text-muted">run: {state.equityRun}</span>}>
           <EquityCurves state={state} reduced={reduced} />
         </Panel>
+        <Panel title="Objections" right={state.followups.length > 0 && <span className="font-mono text-[11px] text-muted">follow-ups {state.followups.length}</span>}>
+          <Objections state={state} reduced={reduced} />
+        </Panel>
       </div>
-      <div className="h-40">
+      <div className="min-h-40">
         <VerdictStamp state={state} reduced={reduced} reportUrl={reportUrl} traceUrl={null} />
       </div>
       <FooterMeters state={state} elapsedMs={Number.isFinite(elapsedMs) ? elapsedMs : 0} followupsRun={state.followupsRun} />

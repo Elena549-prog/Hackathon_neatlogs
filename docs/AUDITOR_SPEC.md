@@ -322,7 +322,7 @@ New files: `src/auditor/` (`plan.py`, `data.py`, `backtest.py`, `checks.py` with
 - **Recovery:** the DoltHub timeout path (section 6), visible in traces. Real failures are labeled REAL; `--fault` runs are labeled INJECTED.
 - **neatlogs:** traces for each demo audit.
 - **Entire:** checkpoints on the auditor commits (section 17, M0).
-- **cfo.ai:** the business plan is built at M0, priced per audit, using the estimated cost per audit (section 8), flagged as an estimate. The single cost variable is updated after M2 with the measured figure. `results/business_model.xlsx` currently prices a $19/month watchlist for the trading swarm and must be reworked for per-audit pricing.
+- **cfo.ai:** the business plan is built at M0, priced per audit, using the estimated cost per audit (section 8), flagged as an estimate. The single cost variable is updated after M2 with the measured figure. `results/business_model.xlsx` was reworked for per-audit pricing on 2026-10-11 (estimate $0.048 per audit, `Assumptions!B5`; see `docs/CFO_AI.md`).
 - **Video** (about 3 minutes). Beats: idea typed → agents at work (replay) → a recovery (labeled) → verdict stamp → neatlogs trace → Entire checkpoint → cfo.ai plan → before/after table. If the interface isn't ready, record the terminal, the report and neatlogs instead. Suggested owner: Elena (team to confirm).
 - **Posts:** tagged #neatHack, scheduled in section 17.
 

@@ -13,3 +13,6 @@ anthropic
 neatlogs
 opentelemetry-api
 python-dotenv
+# cfo.ai workbook (scripts/spikes/build_business_model.py, verify_model.py)
+openpyxl
+pycel
