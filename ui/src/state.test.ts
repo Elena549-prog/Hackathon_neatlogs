@@ -57,6 +57,16 @@ describe("reduce", () => {
     expect(s.followupsRun).toBe(2);
   });
 
+  it("a swarm trade decision runs in trade mode and ends on a trade verdict", () => {
+    let s = reduce(initialState, ev(1, { type: "audit_started", agent: null, payload: { idea: "AMZN", trace_id: null, llm_budget: 1, fault: null, kind: "trade" } }));
+    expect(s.kind).toBe("trade");
+    s = reduce(s, ev(2, { type: "backtest_result", agent: "mathematician", payload: { run: "base", train: stats, validation: null, baseline: { ...stats, paired_ci_low: null }, equity_train: [], equity_validation: [["2026-07-30", 0]], histogram: null } }));
+    expect(s.stats?.validation).toBeNull();
+    s = reduce(s, ev(3, { type: "verdict", agent: null, payload: { verdict: "trade", reason: "r", headline: { entry: 235.5, exit: 247.28, days: 1, pnl: 0.05 }, downgrades: [] } }));
+    expect(s.verdict).toMatchObject({ verdict: "trade", headline: { pnl: 0.05 } });
+    expect(reduce(initialState, ev(1, { type: "audit_started", agent: null, payload: { idea: "x", trace_id: null, llm_budget: 8, fault: null } })).kind).toBe("audit");
+  });
+
   it("verdict without backtests still shows", () => {
     const s = reduce(initialState, ev(1, { type: "verdict", agent: null, payload: { verdict: "cannot_audit", reason: "refused", headline: {}, downgrades: [] } }));
     expect(s.phase).toBe("done");

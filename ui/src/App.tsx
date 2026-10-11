@@ -11,8 +11,9 @@ import { VerdictStamp } from "./components/VerdictStamp";
 import { AGENT_LABEL } from "./state";
 import { pickAudit, useAudit } from "./useAudit";
 
-// Demo ideas, exact text from AUDITOR_SPEC.md section 13.
-export const DEMO_IDEAS = ["buy dips in an uptrend", "buy straddles on tech before earnings", "sell straddles on low-volatility mega-caps"];
+// Demo ideas, exact text from AUDITOR_SPEC.md section 13, then one swarm trade decision (scripts/naysayer_replay.py --events).
+export const DEMO_IDEAS = ["buy dips in an uptrend", "buy straddles on tech before earnings", "sell straddles on low-volatility mega-caps",
+  "AMZN 2026-07-30 · swarm trade decision"];
 
 export default function App() {
   const a = useAudit();

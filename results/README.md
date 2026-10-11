@@ -94,6 +94,8 @@ Naysayer v2 (`f5332a2`) leaves the evidence bar to the coded gate and blocks con
 
 Result in `posthoc_amzn_v1_naysayer_v2.json`. **Post-hoc:** this setup was in the test window already seen, and v2 was written after the test run, so this shows what the change does, not that it works. The overnight +15% gap was not predictable from the plan. A full re-run of the setup with v2 (`runs/swarm_test_posthoc_AMZN_2026-07-30.jsonl`) did not reach the Naysayer: the Planner wrote different plans (round 1 failed the gate with n 2, round 2 was invalid). Evidence for v2 can only come from new days (`src/forward.py`).
 
+The replay was run twice more on 2026-10-12 (once filmed in a terminal, once with `--events` for mission control); v2 approved both times. The second wrote `audits/trade-amzn-2026-07-30/events.jsonl`, which the mission-control UI replays as a trade decision (chip "AMZN 2026-07-30 · swarm trade decision"). Same post-hoc caveat.
+
 ## Traces
 
 Every setup is one neatlogs trace in the `trading-swarm` workflow: a WORKFLOW span `swarm`, with AGENT and TOOL spans (researcher, planner, mathematician, naysayer, get_prices, backtest) tagged `agent`, `round`, `ticker`, `date`, and neatlogs' own LLM spans nested under each agent.

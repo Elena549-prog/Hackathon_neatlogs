@@ -83,13 +83,13 @@ function Legend({ label, stats, color }: { label: string; stats: Stats | null; c
   );
 }
 
-function BaselineStrip({ stats }: { stats: NonNullable<UiState["stats"]> }) {
+function BaselineStrip({ stats }: { stats: NonNullable<UiState["stats"]> & { validation: Stats } }) {
   const rows = [
     { label: "v0 validation mean", value: stats.validation.mean, color: COLORS.accent },
     { label: "no-condition baseline", value: stats.baseline.mean, color: COLORS.muted },
   ];
   const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1e-9);
-  const paired = stats.baseline.paired_ci_low;
+  const paired = stats.baseline.paired_ci_low ?? 0;
   return (
     <div className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-1 border-t border-line pt-3 font-mono text-xs">
       {rows.map((r) => (
@@ -109,19 +109,45 @@ function BaselineStrip({ stats }: { stats: NonNullable<UiState["stats"]> }) {
   );
 }
 
+/** Trade mode, right legend: the setup's latest close against the entry (the last point of the curve). */
+function SetupLegend({ points }: { points: EquityPoint[] }) {
+  const last = points[points.length - 1];
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-xs">
+      <span className="font-semibold tracking-[0.08em]" style={{ color: COLORS.accent }}>THIS SETUP</span>
+      {last ? (
+        <>
+          <span className="text-muted">close vs entry <span className="text-text">{pct(last[1])}</span></span>
+          <span className="text-muted">as of <span className="text-text">{last[0]}</span></span>
+        </>
+      ) : (
+        <span className="text-muted">waiting for prices</span>
+      )}
+    </div>
+  );
+}
+
 export function EquityCurves({ state, reduced }: { state: UiState; reduced: boolean }) {
   const { stats } = state;
+  const trade = state.kind === "trade";
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3">
       <div className="grid grid-cols-2 gap-4">
-        <Legend label="TRAIN" stats={stats?.train ?? null} color={COLORS.muted} />
-        <Legend label="VALIDATION" stats={stats?.validation ?? null} color={COLORS.accent} />
+        <Legend label={trade ? "PAST MATCHES" : "TRAIN"} stats={stats?.train ?? null} color={COLORS.muted} />
+        {trade ? <SetupLegend points={state.equityValidation} /> : <Legend label="VALIDATION" stats={stats?.validation ?? null} color={COLORS.accent} />}
       </div>
       <div className="grid min-h-0 grid-cols-2 gap-4">
         <Curve points={state.equityTrain} color={COLORS.muted} reduced={reduced} />
         <Curve points={state.equityValidation} color={COLORS.accent} reduced={reduced} />
       </div>
-      {stats ? <BaselineStrip stats={stats} /> : <div className="border-t border-line pt-3 font-mono text-xs text-muted">cumulative return per trade, by entry date</div>}
+      {stats && stats.validation && !trade ? (
+        <BaselineStrip stats={{ ...stats, validation: stats.validation }} />
+      ) : (
+        <div className="border-t border-line pt-3 font-mono text-xs text-muted">
+          {trade ? "past matches: cumulative +5% / −3% outcomes by date · this setup: close vs entry, the last 20 days and after the decision"
+            : "cumulative return per trade, by entry date"}
+        </div>
+      )}
     </div>
   );
 }
