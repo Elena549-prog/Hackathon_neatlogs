@@ -3,8 +3,8 @@
     python scripts/spikes/build_business_model.py results/business_model.xlsx
 
 One audit = one trading idea in, one evidence-backed verdict out. The single cost variable is
-Assumptions!B5, "LLM cost per audit (USD)": an ESTIMATE until M2 measures it (AUDITOR_SPEC section 13).
-The Cost_Estimate sheet shows how the estimate is built from the code: calls per audit (spec section 4),
+Assumptions!B5, "LLM cost per audit (USD)": MEASURED, the mean neatlogs cost of the three M2 after-audits.
+The Cost_Estimate sheet documents the pre-M2 estimate, built from the code: calls per audit (spec section 4),
 prompt sizes from src/auditor/agents.py, and prices from src/llm.py, all read here at build time.
 Every other number is an input on the Assumptions sheet; every other cell is a formula.
 """
@@ -103,7 +103,7 @@ def call_cost(agent, sys_chars, user_chars, completion):
 
 ESTIMATE = (1 + UPLIFT) * sum((P_INVALID if isinstance(n, str) else n) * call_cost(agent, s, u, c)
                               for _, agent, n, s, u, c, _ in CALLS)
-LLM_INPUT = round(ESTIMATE, 3)     # the typed value of the single cost variable
+LLM_INPUT = 0.0085     # the typed value of the single cost variable: neatlogs $0.0114, $0.0056, $0.0085 (docs/SUBMISSION.md)
 
 wb = Workbook()
 
@@ -123,22 +123,20 @@ A.merge_cells("A3:E3")
 A.row_dimensions[3].height = 40
 
 # The single cost variable: one cell, used by both scenarios.
-A["A5"] = "LLM cost per audit (USD): ESTIMATE"
+A["A5"] = "LLM cost per audit (USD): MEASURED"
 A["A5"].font = font(RED, bold=True)
 c = A["B5"]
 c.value = LLM_INPUT
-c.number_format = '$0.000'
+c.number_format = '$0.0000'
 c.font = font(BLUE, bold=True)
-c.fill = YELLOW
 c.border = BOX
-A["C5"] = "ESTIMATE"
+A["C5"] = "MEASURED"
 A["C5"].font = font(RED, bold=True)
 A["D5"] = "$ / audit"
 A["D5"].font = font(size=9)
-note(A["E5"], "THE single cost variable; both scenarios and every sheet use it. Estimate, not measured: built bottom-up "
-     "on the Cost_Estimate sheet (%.4f, rounded) from calls per audit, prompt sizes in src/auditor/agents.py and "
-     "DeepSeek prices in src/llm.py (peak, cache-miss: an upper bound). After M2, type the measured mean cost per "
-     "audit here: section '9. Cost and trace' of each demo report (cost.usd in state.json), or the neatlogs traces." % ESTIMATE)
+note(A["E5"], "THE single cost variable; both scenarios and every sheet use it. Measured: mean neatlogs cost of the "
+     "three M2 after-audits ($0.0114, $0.0056, $0.0085). The wrapper's cost.usd in state.json uses DeepSeek peak "
+     "cache-miss prices, an upper bound (mean $0.0351). The pre-M2 bottom-up estimate was $%.4f (Cost_Estimate sheet)." % ESTIMATE)
 A.row_dimensions[5].height = 64
 
 header(A, 7, ["Assumption", "Base", "Growth", "Unit", "Source or note"])
@@ -213,7 +211,7 @@ E = wb.create_sheet("Cost_Estimate")
 E["A1"] = "LLM cost per audit: bottom-up ESTIMATE (not measured)"
 E["A1"].font = font(RED, bold=True, size=13)
 E["A2"] = ("How Assumptions!B5 was estimated before any real audit ran (AUDITOR_SPEC sections 8 and 13). "
-           "Replace Assumptions!B5 with the measured figure after M2; this sheet then documents the estimate.")
+           "Assumptions!B5 now holds the measured figure; this sheet documents the estimate.")
 E["A2"].font = font(italic=True, size=9)
 header(E, 4, ["Input", "Value", "Unit", "Source or note"])
 
@@ -288,11 +286,11 @@ results = [
      "Spec section 4: Planner 1 (+1 only after an invalid plan), Naysayer 2, Reporter 1. Hard budget: 8 calls."),
     ("Cost per audit before uplift", "=J%d" % TOT, "$ / audit", USD_MILLS, ""),
     ("Estimated LLM cost per audit (ESTIMATE)", "=B%d*(1+B13)" % (R1 + 1), "$ / audit", USD_MILLS,
-     "The bottom-up estimate. Rounded, it is the typed value of Assumptions!B5."),
+     "The bottom-up estimate, the typed value of Assumptions!B5 until M2."),
     ("Assumptions!B5, the value the model uses", "=Assumptions!B5", "$ / audit", USD_MILLS,
-     "Green link. Holds this estimate until M2, then the measured figure."),
+     "Green link. The measured figure (neatlogs, three M2 after-audits)."),
     ("Difference: model input minus this estimate", "=B%d-B%d" % (R1 + 3, R1 + 2), "$ / audit", USD_MILLS,
-     "Under $0.0005 while B5 is still the estimate (rounding)."),
+     "Negative: real audits cost less than the estimate."),
     ("Worst case: all 8 budgeted calls (7 thinking + Reporter)", "=(7*I%d+I%d)*(1+B13)" % (P, F), "$ / audit", USD_MILLS,
      "Upper bound if every audit used the full budget."),
     ("Same estimate at DeepSeek off-peak rates (half price)", "=B%d/2" % (R1 + 2), "$ / audit", USD_MILLS, ""),
@@ -344,8 +342,8 @@ NOTES = [
     "User prompt sizes were measured on 2026-10-11 by running the audit loop with the fake LLM on the synthetic market of "
     "tests/test_auditor_run.py, extended to all 50 tickers, for the three demo ideas, then rounded up.",
     "Data costs $0 (Yahoo Finance, DoltHub, both public). Hosting is a fixed monthly cost on Assumptions, not per audit.",
-    "To replace the estimate: type the mean measured cost per audit of the demo audits into Assumptions!B5. Source: "
-    "section '9. Cost and trace' of each report.md (or cost.usd in state.json), cross-checked in neatlogs.",
+    "Replaced: Assumptions!B5 holds the mean measured cost per audit of the three M2 after-audits in neatlogs. "
+    "The wrapper's cost.usd in each state.json uses peak cache-miss prices, so it is an upper bound (mean $0.0351).",
 ]
 for i, t in enumerate(NOTES):
     c = E.cell(row=N0 + i, column=1, value=t)
@@ -365,7 +363,7 @@ def build_model(title, col):
     ws["A1"] = "%s scenario: monthly model (months 1-%d)" % (title.split("_")[1], MONTHS)
     ws["A1"].font = font(bold=True, size=13)
     ws["A2"] = ("All values in $ unless the unit column says otherwise. Inputs live on the Assumptions sheet, column %s; "
-                "LLM cost per audit is the single cell Assumptions!B5 (ESTIMATE)." % col)
+                "LLM cost per audit is the single cell Assumptions!B5 (MEASURED)." % col)
     ws["A2"].font = font(italic=True, size=9)
 
     lines = [   # key, label, unit, first-month formula, later-month formula ({c} = column, {p} = previous column), format, color
@@ -454,7 +452,7 @@ R = MODEL_ROWS
 U = wb.create_sheet("Unit_Economics")
 U["A1"] = "Unit economics: per audit and per subscriber"
 U["A1"].font = font(bold=True, size=13)
-U["A2"] = "LLM cost per audit is Assumptions!B5 (ESTIMATE until M2 measures it)."
+U["A2"] = "LLM cost per audit is Assumptions!B5 (MEASURED in neatlogs)."
 U["A2"].font = font(italic=True, size=9)
 header(U, 3, ["Line", "Base", "Growth", "Unit"])
 s = "{s}"
@@ -463,7 +461,7 @@ ue = [   # label, formula template ({s} = scenario column on Assumptions, {c} = 
     ("Price per audit", "=" + a("price_audit", s), "$ / audit", USD_CENTS),                                        # 5
     ("Payment fees per audit", "=%s*%s+%s/%s" % (a("price_audit", s), a("fee_pct", s), a("fee_fixed", s), a("pack", s)),
      "$ / audit", USD_CENTS),                                                                                     # 6
-    ("LLM cost per audit (ESTIMATE)", "=" + a("llm", s), "$ / audit", USD_MILLS),                                 # 7
+    ("LLM cost per audit (MEASURED)", "=" + a("llm", s), "$ / audit", USD_MILLS),                                 # 7
     ("Data cost per audit", "=" + a("data", s), "$ / audit", USD_CENTS),                                          # 8
     ("Contribution per audit", "={c}5-{c}6-{c}7-{c}8", "$ / audit", USD_CENTS),                                   # 9
     ("Gross margin per audit", "=IF({c}5=0,0,{c}9/{c}5)", "%", PCT),                                              # 10
@@ -512,11 +510,11 @@ S = wb.create_sheet("Summary", 0)
 S["A1"] = "Strategy Auditor: business plan summary"
 S["A1"].font = font(bold=True, size=13)
 S["A2"] = ("Two scenarios over %d months, priced per audit. Change inputs on the Assumptions sheet; everything here "
-           "recalculates. LLM cost per audit is an ESTIMATE (Assumptions!B5) until M2 measures it." % MONTHS)
+           "recalculates. LLM cost per audit is MEASURED (Assumptions!B5)." % MONTHS)
 S["A2"].font = font(italic=True, size=9)
 header(S, 4, ["Metric", "Base", "Growth", "Unit"])
 summary = [
-    ("LLM cost per audit (ESTIMATE, Assumptions!B5)", "=Assumptions!$B$5", "$ / audit", USD_MILLS),          # 5
+    ("LLM cost per audit (MEASURED, Assumptions!B5)", "=Assumptions!$B$5", "$ / audit", USD_MILLS),          # 5
     ("Contribution per audit, pay per audit", "=Unit_Economics!{u}9", "$ / audit", USD_CENTS),                # 6
     ("Gross margin per audit", "=Unit_Economics!{u}10", "%", PCT),                                            # 7
     ("Contribution per hobbyist subscriber", "=Unit_Economics!{u}17", "$ / month", USD_CENTS),                # 8
@@ -545,7 +543,7 @@ summary = [
 ]
 for i, (label, tmpl, unit, fmt) in enumerate(summary):
     r = 5 + i
-    S.cell(row=r, column=1, value=label).font = font(RED if "ESTIMATE" in label else BLACK, bold="ESTIMATE" in label)
+    S.cell(row=r, column=1, value=label).font = font(RED if "MEASURED" in label else BLACK, bold="MEASURED" in label)
     for col, m, u in ((2, "Model_Base", "B"), (3, "Model_Growth", "C")):
         cell = S.cell(row=r, column=col, value=tmpl.format(m=m, u=u))
         cell.number_format = fmt
@@ -555,9 +553,9 @@ notes = [
     "How to read this:",
     "- One audit = one trading idea in, one evidence-backed verdict out. Sold per audit ($2, in packs of 5) or as a "
     "hobbyist plan ($15/month, 20 audits): both are pricing hypotheses.",
-    "- LLM cost per audit is a bottom-up ESTIMATE from the code (Cost_Estimate sheet), at DeepSeek peak prices. "
-    "It is replaced with the measured figure after M2.",
-    "- Variable cost is a few cents an audit, so margins are set by price and card fees; the plan is decided by "
+    "- LLM cost per audit is MEASURED: the mean neatlogs cost of the three M2 after-audits. The pre-M2 bottom-up "
+    "estimate (Cost_Estimate sheet) was about 5.6x higher.",
+    "- Variable cost is under a cent an audit, so margins are set by price and card fees; the plan is decided by "
     "users, churn, CAC and team cost (owner estimates, yellow on Assumptions).",
     "- No fees or taxes beyond card processing are modeled. The auditor gives research verdicts, not financial advice.",
 ]
@@ -570,5 +568,5 @@ for col in "BC":
 S.column_dimensions["D"].width = 12
 
 wb.save(OUT)
-print("saved", OUT, "| estimate %.5f -> Assumptions!B5 = %.3f" % (ESTIMATE, LLM_INPUT),
+print("saved", OUT, "| estimate %.5f, Assumptions!B5 = %.4f measured" % (ESTIMATE, LLM_INPUT),
       "| model rows:", {k: R[k] for k in ("users_end", "audits", "revenue", "llm", "op", "cash_end", "flag_cash", "flag_profit")})

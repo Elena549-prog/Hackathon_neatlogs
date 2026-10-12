@@ -8,9 +8,9 @@ Rebuild it with `python scripts/spikes/build_business_model.py results/business_
 
 ## The single cost variable
 
-**`Assumptions!B5`, "LLM cost per audit (USD)" = $0.048, ESTIMATE.** Every LLM cost in the model is a formula on this one cell, in both scenarios.
+**`Assumptions!B5`, "LLM cost per audit (USD)" = $0.0085, MEASURED.** The mean neatlogs cost of the three M2 after-audits ($0.0114, $0.0056, $0.0085; `docs/SUBMISSION.md`). Every LLM cost in the model is a formula on this one cell, in both scenarios. The same value is in the cfo.ai Variable, and the workbook matches the live model to the cent.
 
-It is estimated bottom-up from the code on the `Cost_Estimate` sheet, because no real DeepSeek audit has run yet:
+Before any real DeepSeek audit had run, it was estimated bottom-up from the code on the `Cost_Estimate` sheet, which the workbook keeps as documentation:
 
 | Call (spec section 4, at M2) | Model | Calls per audit | Prompt tokens | Completion tokens | $ per call |
 |---|---|---|---|---|---|
@@ -21,7 +21,7 @@ It is estimated bottom-up from the code on the `Cost_Estimate` sheet, because no
 | Reporter: prose | deepseek-flash, no thinking | 1 | 2,670 | 300 | 0.0012 |
 | **Total** | | **4.1** (budget 8) | | | **0.0433** |
 
-Plus 10% for retries (billed, spec section 8): **$0.0476 per audit**, typed as $0.048.
+Plus 10% for retries (billed, spec section 8): **$0.0476 per audit**, typed as $0.048 until M2. The measured $0.0085 is 5.6x lower.
 
 - Prices: `src/llm.py` `PRICES`, DeepSeek peak cache-miss ($1.32 / $3.96 per 1M tokens for v4-pro, $0.30 / $1.20 for flash), so it is an upper bound. Off-peak is half: $0.024.
 - Prompt tokens = characters / 4. System prompts (including the M2 follow-up prompt, `NAYSAYER_FOLLOWUPS_SYSTEM`) are read from `src/auditor/agents.py` at build time, plus the JSON-schema suffix `src/llm.py` appends. User prompts were measured by running the audit loop with the fake LLM on a synthetic 50-ticker market for the three demo ideas, then rounded up.
@@ -30,7 +30,7 @@ Plus 10% for retries (billed, spec section 8): **$0.0476 per audit**, typed as $
 - Worst case, all 8 budgeted calls: $0.105 per audit.
 - Data costs $0 (Yahoo Finance, DoltHub public data). Hosting is a fixed $50 a month (one small VM), not a per-audit cost.
 
-**After M2, update `Assumptions!B5` with the measured figure:** the mean cost of the demo audits from section "9. Cost and trace" of each `report.md` (or `cost.usd` in its `state.json`), cross-checked against the neatlogs traces. Use the M2 runs: M1 makes one Naysayer call, not two, so M1 runs come in about one thinking call (~$0.014) lower. In cfo.ai, change the matching Variable instead. Everything downstream recalculates.
+**Measured after M2 (done 2026-10-12):** the mean neatlogs cost of the three M2 after-audits, $0.0085, is in `Assumptions!B5` and in the cfo.ai Variable. The wrapper's `cost.usd` in each `state.json` uses peak cache-miss prices, so it is an upper bound (mean $0.0351). M1 runs make one Naysayer call, not two, so they were left out. To change it again, edit `LLM_INPUT` in `build_business_model.py` and rebuild, and change the cfo.ai Variable. Everything downstream recalculates.
 
 ## What's in the workbook
 
@@ -50,20 +50,23 @@ All 763 formulas evaluate without errors (pycel), and the key outputs match an i
 - **Owner estimates (yellow):** new users, growth, churn, CAC, team cost, starting cash ($25,000), hosting. Change them before presenting if you have better numbers.
 - **Standard pricing:** card fees, 2.9% + $0.30 (Stripe US).
 
-## Results with the current assumptions
+## Results at the measured $0.0085 per audit
+
+Same figures in the live cfo.ai model and in the workbook (`verify_model.py`: all checks pass).
 
 | | Base | Growth |
 |---|---|---|
-| Contribution per audit (pay per audit) | $1.83 (91.7%) | $1.83 (91.7%) |
-| Contribution per subscriber per month | $13.79 (91.9%) | $13.79 (91.9%) |
-| LTV to CAC | 3.7x | 3.7x |
+| Contribution per audit (pay per audit) | $1.87 (93.7%) | $1.87 (93.7%) |
+| Contribution per subscriber per month | $14.18 (94.5%) | $14.18 (94.5%) |
+| LTV to CAC | 3.8x | 3.8x |
 | Paying users, month 12 | 110 | 416 |
 | Revenue, month 12 | $1,055 | $3,994 |
-| Operating profit, months 1-12 | −$22,973 | −$72,894 |
-| Cash, end of month 12 | $2,027 (about 1.3 months left) | −$47,894 (below zero in month 4) |
-| Funding needed to never go below zero | $0 | $47,894 |
+| LLM cost, months 1-12 | $35.80 (was $202.19 at the $0.048 estimate) | $117.95 |
+| Operating profit, months 1-12 | −$22,807 | −$72,346 |
+| Cash, end of month 12 | $2,193 (about 1.4 months left) | −$47,346 (below zero in month 4) |
+| Funding needed to never go below zero | $0 | $47,346 |
 
-Reading: at about 5 cents an audit, LLM cost is 2.4% of the $2 price; card fees cost more. The cost per audit would have to reach $1.88 before an audit stops contributing, so the estimate can be wrong by a lot without changing the story. The plan is decided by users, churn, CAC and team cost, not by inference. Neither scenario breaks even within 12 months on these owner estimates.
+Reading: at under a cent an audit, LLM cost is 0.4% of the $2 price; card fees ($0.118 an audit) cost 14x more. The cost per audit would have to reach $1.88, about 220x the measured cost, before an audit stops contributing. The plan is decided by users, churn, CAC and team cost, not by inference. Neither scenario breaks even within 12 months on these owner estimates.
 
 ## Steps (Zeeshan)
 
@@ -82,7 +85,7 @@ Reading: at about 5 cents an audit, LLM cost is 2.4% of the $2 price; card fees 
    > Show unit economics per audit and per subscriber, runway and the funding needed for each scenario, and how gross margin per audit changes if LLM cost per audit is 2x and 5x the estimate. Then draft a one-page business plan summary from this Model, stating that LLM cost per audit is an estimate until it is measured.
 
 6. Share the model or page as a read-only link and put the link, plus a screenshot, in the submission. Save a PDF or screenshots to `results/` too.
-7. After M2: replace the cost Variable with the measured figure (see "The single cost variable" above) and ask Ari:
+7. Done 2026-10-12. After M2: replace the cost Variable with the measured figure (see "The single cost variable" above) and ask Ari:
 
    > Update the Variable "LLM cost per audit (USD)" to <measured value>, measured from <n> real audits (neatlogs and the reports' cost sections). Remove the ESTIMATE label, note the source, and show what changed in the summary.
 
