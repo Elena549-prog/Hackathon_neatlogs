@@ -1,0 +1,1 @@
+[paraphrased] Combine a price and stock watcher with an agent swarm: a researcher, a planner, a mathematician and a naysayer. On each request the other agents must convince the naysayer before anything is invested. We can demo it with paper trading.
