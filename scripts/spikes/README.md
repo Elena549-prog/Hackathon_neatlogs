@@ -9,7 +9,7 @@ Throwaway research scripts from 2026-10-10, rescued from a session scratchpad on
 | `signal_test_50_cfg.py` | Shared config: the 50 tickers and the train/validation windows | Config only, no result. |
 | `vol_test_50.py` | Is the size of the next 10-day move (±5%) predictable on 50 stocks? | Yes, AUC 0.67. |
 | `straddle_test.py` | Do 10-day at-the-money straddles have a predictable edge on 50 stocks (implied vol from DoltHub)? | No. Buying loses 4–7% per trade; models can't pick winners (AUC 0.49–0.52). |
-| `build_business_model.py` | Builds `results/business_model.xlsx` for cfo.ai | Prices the Strategy Auditor per audit: estimated LLM cost $0.048 per audit in `Assumptions!B5` (replace with the measured cost after the demo audits). |
+| `build_business_model.py` | Builds `results/business_model.xlsx` for cfo.ai | Prices the Strategy Auditor per audit: measured LLM cost $0.0085 per audit in `Assumptions!B5` (neatlogs, three M2 after-audits; the pre-M2 estimate of $0.048 stays on the `Cost_Estimate` sheet). |
 | `verify_model.py` | Evaluates every workbook formula with pycel and checks key outputs against a Python model | Formulas verified. |
 
 Paths and caches:
