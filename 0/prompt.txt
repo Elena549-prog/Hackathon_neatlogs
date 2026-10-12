@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>bdd3mj6a4</task-id>
+<summary>Monitor event: "full validation run progress (setups done, errors, approvals)"</summary>
+<event>done=3/577 errors=0 approved=0</event>
+</task-notification>
