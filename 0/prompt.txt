@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bkbpxlxu7</task-id>
+<tool-use-id>toolu_01UgBVR3qGUhcJ6wZoPvzeTx</tool-use-id>
+<output-file>C:\Users\user\AppData\Local\Temp\claude\D--user-projects\fe8e645e-8252-4d8c-8e22-ae801ea89ecd\tasks\bkbpxlxu7.output</output-file>
+<status>completed</status>
+<summary>Background command "Back up partial results and resume the validation run with 8 workers" completed (exit code 0)</summary>
+</task-notification>
