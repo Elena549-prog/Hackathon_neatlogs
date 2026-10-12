@@ -1,0 +1,5 @@
+<task-notification>
+<task-id>ba3qnq621</task-id>
+<summary>Monitor event: "resumed validation run: every 100 setups, every 10 new errors, or finish"</summary>
+<event>written=410/577 errors=0 approved=1</event>
+</task-notification>
