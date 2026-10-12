@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b863n5zrk</task-id>
+<tool-use-id>toolu_017yAemmhuUPx9UTpsEEEpkb</tool-use-id>
+<output-file>C:\Users\user\AppData\Local\Temp\claude\D--user-projects\fe8e645e-8252-4d8c-8e22-ae801ea89ecd\tasks\b863n5zrk.output</output-file>
+<status>completed</status>
+<summary>Background command "Render the brag video at high quality" completed (exit code 0)</summary>
+</task-notification>
