@@ -1,0 +1,1 @@
+[paraphrased] Does the Strategy Auditor fit the hackathon brief? (Brief pasted: build an agent, or a team of agents, that completes a substantial task from start to finish, covering planning, tool use, state, context, execution, recovery, verification and iteration; the project must use neatlogs, Entire and cfo.ai.)
