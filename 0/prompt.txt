@@ -1,0 +1,1 @@
+[paraphrased] I want to give my teammate enough information to do these steps on her own: the Laya schema check, price data (5 tickers, 2 years), labels and time splits, and the Laya dataset export and Kaggle fine-tune (start early, about 5 hours). Write a detailed plan and spec, so that when she connects her Claude to the repository it can tell her what to do.
