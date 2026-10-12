@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bmax2uk1j</task-id>
+<tool-use-id>toolu_0166QBzH2FnPaUundYe9SzpP</tool-use-id>
+<output-file>C:\Users\user\AppData\Local\Temp\claude\D--user-projects\fe8e645e-8252-4d8c-8e22-ae801ea89ecd\tasks\bmax2uk1j.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun the straddle edge test with date-window downloads" completed (exit code 0)</summary>
+</task-notification>
