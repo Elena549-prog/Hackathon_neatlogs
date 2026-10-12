@@ -1,0 +1,14 @@
+<pasted_content id="3b4c">
+Yes, require at least one condition. I’ve added this to the spec in PR #3 and replied there to Zeeshan, so the answer and the fix are on GitHub.
+
+What changed in the spec:
+
+Conditions are enforced in code, not just requested in the prompt. A plan needs between 1 and 4 conditions; the validator rejects 0 or 5 and more.
+“Thesis too broad” block. If the conditions match more than 80% of the eligible training days, the gate blocks. Without this, the Planner could write one condition that every day meets, like “volatility below 50%”, and get the same loophole back.
+The table updated. The all-train row now reads “block: too broad” instead of “pass, barely”.
+Matching tests were added to section 11, and the 80% is listed under “Decisions to confirm”.
+
+Why it’s the right call: a plan with no conditions just means “buy everything”. That’s not a thesis, it’s the buy-and-hold baseline the project already measures separately. It would also lose money in practice: on the validation period only 36.6% of setups were winners, below the 37.5% needed to break even with +5%/−3%. Requiring a real, narrowing condition makes the swarm show that it picks better than average.
+
+One honest caveat: the 80% is a judgment call, not something derived from the data. 70% or 90% would be just as defensible, which is why it’s marked as a decision to confirm.
+</pasted_content id="3b4c">
