@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b597nuya6</task-id>
+<tool-use-id>toolu_01Gu9PaomsRJ5dNgRvdCz9Wh</tool-use-id>
+<output-file>C:\Users\user\AppData\Local\Temp\claude\D--user-projects\fe8e645e-8252-4d8c-8e22-ae801ea89ecd\tasks\b597nuya6.output</output-file>
+<status>completed</status>
+<summary>Monitor "resumed validation run: alert on new errors (every 10) or a crash" ended without producing output (exit 0)</summary>
+</task-notification>
