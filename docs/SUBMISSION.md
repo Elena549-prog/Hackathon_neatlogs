@@ -52,9 +52,11 @@ Built with Claude Code with Entire enabled (`.entire/settings.json`). Three comm
 | [679ce33](https://github.com/Elena549-prog/Hackathon_neatlogs/commit/679ce33ae17be6d1070ccf38f650e3a25b3189da) | UI: dark brown theme | `01M4P4DWCS6Q3TCMMPZPK77MWS` |
 | [3dd82ec](https://github.com/Elena549-prog/Hackathon_neatlogs/commit/3dd82ece3a5c92a548df4ad1c38664d1e5a13440) | UI: readable agent list, activity feed, replay matching | `01M4P725EADX0FTG0971SAX4CT` |
 
-- The checkpoint data is on GitHub as `refs/entire/checkpoints/*` in this repo. The copies here are redacted and paraphrased.
-- Repo on Entire: https://entire.io/gh/Elena549-prog/Hackathon_neatlogs. On 2026-10-12 the Sessions tab showed nothing while logged out; check it while logged in before citing it.
-- Automatic session pushing (`push_sessions`) is off; these three checkpoints were pushed by hand.
+The first build session (2026-10-10 to 10-11: choosing the idea, the plan, price data and labels, the four-agent swarm, the full validation run, the cost cuts and the Strategy Auditor spec) ran before Entire was enabled here. It was imported with `entire import claude-code` as 98 read-only checkpoints (`01M4JE6S4TB85QPH6PVZH8QAEX` to `01M4NEWYXZTJ7F83WYA3AY51K9`). Imported checkpoints are not linked to commits.
+
+- The checkpoint data is on GitHub as `refs/entire/checkpoints/*` in this repo. The copies here are redacted: the user's prompts are replaced by paraphrases marked `[paraphrased]`; secrets, personal emails, local usernames and images are removed; side work unrelated to the agent (a promo video) is cut.
+- Repo on Entire: https://entire.io/gh/Elena549-prog/Hackathon_neatlogs/sessions. The Sessions tab opens without logging in.
+- Automatic session pushing (`push_sessions`) is off; the checkpoints were pushed by hand.
 
 ## Not in the repo
 
