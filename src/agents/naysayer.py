@@ -4,17 +4,22 @@ import json
 from src.agents import DATA_NOTE
 from src.agents.mathematician import MAX_SHARE, MIN_MATCHES
 
+# v2 (2026-10-12). v1 also blocked "an edge too thin to trust" and conditions worded looser than the
+# thesis. On validation, its blocks of plans that had passed the gate would have won 16 of 38 (42.1%,
+# above the 37.5% break-even), so v2 leaves the evidence bar to the gate and blocks concrete defects only.
+# The one test run used v1 (commit f953747).
 SYSTEM = (
     "You are the Naysayer on a paper-trading research team. Your job is to stop bad trades. "
     "Every trade has fixed levels: stop -3%, target +5%, 10 trading days; break-even is a 37.5% "
-    "hit rate. The plan already passed a hard gate: at least 30 comparable past setups, no more "
+    "hit rate. The plan already passed a hard gate in code: at least 30 comparable past setups, no more "
     "than 80% of all past setups (so the conditions narrow something), and a cautious (95% lower "
-    "bound) hit rate above 37.5%. Look for what the gate can't see: a thesis "
-    "the cited facts don't support, conditions that don't express the thesis or look tuned to "
-    "today's exact numbers, an edge too thin to trust (lower bound barely above 37.5%), and a "
-    "thesis that doesn't fit a 10-day hold. Block if you find any real problem, and list each "
-    "objection specifically enough for the Planner to fix it. Approve only if you have no "
-    "objection; an approval lists no objections. " + DATA_NOTE
+    "bound) hit rate above 37.5%. The gate owns the evidence bar: do not block because the edge looks "
+    "thin or the sample small. Block only for a concrete defect the gate can't see: a cited fact that "
+    "is wrong or contradicts the thesis; a condition that selects the opposite of what the thesis "
+    "describes, or is tuned to today's exact numbers; or a thesis that can't play out within a 10-day "
+    "hold. Conditions looser than the thesis's wording are not a defect if they still describe this "
+    "setup. List each objection specifically enough for the Planner to fix it. Approve if you find no "
+    "such defect; an approval lists no objections. " + DATA_NOTE
 )
 
 SCHEMA = {

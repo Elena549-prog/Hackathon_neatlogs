@@ -13,13 +13,18 @@ const STAMP: Record<Verdict, { label: string; color: string }> = {
   inconclusive: { label: "INCONCLUSIVE", color: "var(--color-inconclusive)" },
   promising: { label: "PROMISING", color: "var(--color-promising)" },
   cannot_audit: { label: "CANNOT AUDIT", color: "var(--color-cannot)" },
+  trade: { label: "APPROVED · PAPER TRADE", color: "var(--color-promising)" },
+  no_trade: { label: "NO TRADE", color: "var(--color-cannot)" },
 };
 const SUBTITLE: Record<Verdict, string> = {
   kill: "Enough evidence, and the validation mean return per trade is 0 or below.",
   promising: "Passed a 6-month historical screen. Not a forecast. Not financial advice.",
   inconclusive: "inconclusive: a strategy with no real edge lands here about half the time",
   cannot_audit: "Refused, outside the supported families, core of the idea not testable, or no valid plan.",
+  trade: "The gate passed and the Naysayer approved. The simulator closed the position on real prices.",
+  no_trade: "The Naysayer blocked the plan, so no position was opened.",
 };
+const price = (v: number) => `$${v.toFixed(2)}`;
 const REVEAL_MS = 900;
 
 function Figure({ label, value, format, reduced }: { label: string; value: number | undefined; format: (v: number) => string; reduced: boolean }) {
@@ -56,7 +61,7 @@ export function VerdictStamp({ state, reduced, reportUrl, traceUrl }: { state: U
     );
   }
   const stamp = STAMP[v.verdict] ?? STAMP.cannot_audit;
-  const showFigures = v.verdict !== "cannot_audit";
+  const showFigures = v.verdict !== "cannot_audit" && v.verdict !== "no_trade";
   return (
     <motion.div
       key={v.verdict}
@@ -74,7 +79,15 @@ export function VerdictStamp({ state, reduced, reportUrl, traceUrl }: { state: U
       </div>
       <div className="flex min-w-0 flex-col gap-3">
         <p className="max-w-[65ch] text-sm text-text">{v.reason}</p>
-        {showFigures && (
+        {showFigures && v.verdict === "trade" && (
+          <div className="grid grid-cols-4 gap-6">
+            <Figure label="entry" value={v.headline.entry} format={price} reduced={reduced} />
+            <Figure label="exit" value={v.headline.exit} format={price} reduced={reduced} />
+            <Figure label="days held" value={v.headline.days} format={int} reduced={reduced} />
+            <Figure label="p&l" value={v.headline.pnl} format={pct} reduced={reduced} />
+          </div>
+        )}
+        {showFigures && v.verdict !== "trade" && (
           <div className="grid grid-cols-4 gap-6">
             <Figure label="validation trades" value={v.headline.n} format={int} reduced={reduced} />
             <Figure label="mean per trade" value={v.headline.mean} format={pct} reduced={reduced} />

@@ -1,7 +1,8 @@
 // Audit event contract, AUDITOR_SPEC.md section 16. One JSON object per line of events.jsonl.
 
 export type Agent = "planner" | "researcher" | "mathematician" | "naysayer" | "reporter" | "triage";
-export type Verdict = "kill" | "inconclusive" | "promising" | "cannot_audit";
+// trade / no_trade: a swarm decision on one setup (scripts/naysayer_replay.py --events), not a strategy audit.
+export type Verdict = "kill" | "inconclusive" | "promising" | "cannot_audit" | "trade" | "no_trade";
 
 export interface Stats {
   n: number;
@@ -14,7 +15,7 @@ export interface Stats {
   worst_trade: number;
   worst_window: number;
 }
-export type BaselineStats = Stats & { paired_ci_low: number };
+export type BaselineStats = Stats & { paired_ci_low: number | null };
 export type EquityPoint = [string, number];
 
 interface Base<T extends string, A extends Agent | null, P> {
@@ -26,7 +27,7 @@ interface Base<T extends string, A extends Agent | null, P> {
   payload: P;
 }
 
-export type AuditStartedEvent = Base<"audit_started", null, { idea: string; trace_id: string | null; llm_budget: number; fault: string | null; provider?: string }>;
+export type AuditStartedEvent = Base<"audit_started", null, { idea: string; trace_id: string | null; llm_budget: number; fault: string | null; provider?: string; kind?: "audit" | "trade" }>;
 export type AgentStartedEvent = Base<"agent_started", Agent, { step: string }>;
 export type AgentFinishedEvent = Base<"agent_finished", Agent, { step: string; status: "ok" | "error"; duration_ms: number; summary: unknown }>;
 export type LlmCallEvent = Base<"llm_call", Agent, { model: string; prompt_tokens: number; completion_tokens: number; cost_usd: number; latency_ms: number }>;
@@ -36,7 +37,7 @@ export type DataProgressEvent = Base<"data_progress", "researcher", { what: stri
 export type BacktestResultEvent = Base<"backtest_result", "mathematician", {
   run: string;
   train: Stats;
-  validation: Stats;
+  validation: Stats | null;     // null for a trade decision: the right curve is the setup's close vs entry
   baseline: BaselineStats;
   equity_train: EquityPoint[];
   equity_validation: EquityPoint[];
@@ -55,7 +56,7 @@ export type RecoveredEvent = Base<"recovered", Agent | null, { failed: string; a
 export type VerdictEvent = Base<"verdict", null, {
   verdict: Verdict;
   reason: string;
-  headline: { n?: number; mean?: number; ci_low?: number; paired_ci_low?: number };
+  headline: { n?: number; mean?: number; ci_low?: number; paired_ci_low?: number; entry?: number; exit?: number; days?: number; pnl?: number; usd?: number };
   downgrades: { cause?: string; from?: Verdict; to?: Verdict; [k: string]: unknown }[];
 }>;
 export type ReportReadyEvent = Base<"report_ready", "reporter", { path: string; trace_id: string | null; prose_included: boolean }>;

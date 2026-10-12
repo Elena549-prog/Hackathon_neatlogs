@@ -1,0 +1,134 @@
+{
+"command": "D:/zeesh/projects/trading-swarm/.venv/Scripts/python.exe -m scripts.naysayer_replay results/posthoc_amzn_v1_naysayer.json runs/posthoc_amzn_recorded.json",
+"exit": 0,
+"lines": [
+[
+0.883,
+"\u001b[1mNaysayer replay: setup AMZN 2026-07-30\u001b[0m"
+],
+[
+0.884,
+"\u001b[33mpost-hoc: this setup was already seen in the test run; paper trade only\u001b[0m"
+],
+[
+5.88,
+""
+],
+[
+5.88,
+"\u001b[1m[1] Researcher facts\u001b[0m\u001b[2m  (from the test run's neatlogs trace; agents never see ticker or date)\u001b[0m"
+],
+[
+5.88,
+"    The 1-day return is 0.0390, meaning today's close is 3.90% above the prior day's close."
+],
+[
+5.88,
+"    The 10-day return is -0.0576, meaning today's close is 5.76% below the close 10 trading days ago."
+],
+[
+5.88,
+"    Today's close is 1.0032 of the 200-day moving average, i.e., about 0.32% above it."
+],
+[
+5.881,
+""
+],
+[
+5.881,
+"\u001b[1m[2] Planner plan\u001b[0m"
+],
+[
+5.881,
+"    A short-term pullback that remains above the 200-day moving average and shows a strong one-day reversal is likely to resume higher, making the fixed 3% risk versus 5% reward long attractive."
+],
+[
+5.881,
+"    conditions: ret_1d > 0.01, ret_10d < -0.02, close_to_ma200 > 1.0"
+],
+[
+5.881,
+"    exits: +5% target, -3% stop, 10 trading days"
+],
+[
+5.881,
+""
+],
+[
+5.881,
+"\u001b[1m[3] Mathematician\u001b[0m\u001b[2m  (code, re-run now)\u001b[0m"
+],
+[
+5.884,
+"    39 of 1263 past setups match \u00b7 hit rate 59.0% \u00b7 cautious 43.4% vs 37.5% break-even"
+],
+[
+5.884,
+"    gate: \u001b[32mPASSED\u001b[0m   expected value +0.47% per trade"
+],
+[
+5.884,
+""
+],
+[
+5.884,
+"\u001b[1m[4] Naysayer v1\u001b[0m\u001b[2m  (recorded in the test run)\u001b[0m"
+],
+[
+5.884,
+"    \u001b[31mBLOCK\u001b[0m"
+],
+[
+5.884,
+"    - The ret_1d > 0.01 condition does not express the thesis's 'strong one-day reversal'. Given vol_20d = 0.0181, a 1% daily gain is only about 0.55 standard deviations, so this filter admits weak bounces rather than strong reversals. The Planner should strengthen the reversal threshold (e.g., ret_1d > 0.02 or ret_1d > k * vol_20d) and re-run the gate."
+],
+[
+5.884,
+""
+],
+[
+5.884,
+"\u001b[1m[5] Naysayer v2\u001b[0m\u001b[2m  (calling deepseek-v4-pro now, same input)\u001b[0m"
+],
+[
+17.755,
+"    \u001b[32mAPPROVE\u001b[0m  (no objections)"
+],
+[
+17.755,
+""
+],
+[
+17.755,
+"\u001b[1m[6] Paper trade\u001b[0m\u001b[2m  (opened at the close; later prices read only now)\u001b[0m"
+],
+[
+17.755,
+"    LONG 283 AMZN @ 235.50   stop 228.44   target 247.28"
+],
+[
+17.755,
+"    day 1  2026-07-31  high 273.23  low 262.01"
+],
+[
+17.755,
+"    \u001b[32m\u001b[1mWIN +5.00%  (+3332 USD on paper)\u001b[0m"
+],
+[
+17.756,
+""
+],
+[
+17.756,
+"\u001b[2mLLM cost $0.0059 \u00b7 saved runs/posthoc_amzn_recorded.json\u001b[0m"
+],
+[
+17.764,
+"2026-10-12 02:54:41 - neatlogs - INFO - Neatlogs SDK shutdown complete"
+],
+[
+18.433,
+null
+]
+]
+}

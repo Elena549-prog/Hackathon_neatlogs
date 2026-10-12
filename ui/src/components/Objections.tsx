@@ -14,6 +14,9 @@ const HEX = { line: "#46352a", accent: "#efe0b9", amber: "#e2a548" };
 const CHECK_LABEL: Record<string, string> = {
   evidence: "Evidence", leakage: "Leakage", decay: "Out-of-sample decay", shared_window: "Shared window",
   cost_realism: "Cost realism", tail_risk: "Tail risk", data_drops: "Data drops",
+  // Swarm trade decision: the hard gate, then each Naysayer's verdict.
+  gate_evidence: "Evidence", gate_breadth: "Breadth", gate_edge: "Edge vs break-even",
+  naysayer_v1: "Naysayer v1", naysayer_v2: "Naysayer v2",
 };
 // The follow-up menu names from spec section 4, shown until the result's own title arrives.
 const FOLLOWUP_TITLE: Record<string, string> = { F1: "Earnings excluded", F2: "Per-year stability", F3: "Horizon sensitivity", F4: "Concentration" };

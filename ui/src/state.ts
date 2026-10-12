@@ -32,6 +32,7 @@ export interface Followup {
 
 export interface UiState {
   phase: "idle" | "running" | "done";
+  kind: "audit" | "trade";
   idea: string;
   provider: string | null;
   startedAt: string | null;
@@ -44,7 +45,7 @@ export interface UiState {
   equityTrain: EquityPoint[];
   equityValidation: EquityPoint[];
   equityRun: string | null;
-  stats: { train: Stats; validation: Stats; baseline: BaselineStats } | null;
+  stats: { train: Stats; validation: Stats | null; baseline: BaselineStats } | null;
   followups: Followup[];
   followupsRun: number;
   checks: { check: string; passed: boolean; value: unknown; note: string }[];
@@ -60,6 +61,7 @@ export interface UiState {
 
 export const initialState: UiState = {
   phase: "idle",
+  kind: "audit",
   idea: "",
   provider: null,
   startedAt: null,
@@ -159,7 +161,8 @@ function apply(prev: UiState, e: AuditEvent): UiState {
   const s: UiState = { ...prev, lastSeq: e.seq, lastTs: e.ts };
   switch (e.type) {
     case "audit_started":
-      return { ...s, phase: "running", idea: e.payload.idea, provider: e.payload.provider ?? null, startedAt: e.ts, traceId: e.payload.trace_id,
+      return { ...s, phase: "running", kind: e.payload.kind === "trade" ? "trade" : "audit", idea: e.payload.idea,
+        provider: e.payload.provider ?? null, startedAt: e.ts, traceId: e.payload.trace_id,
         meters: { ...s.meters, budget: e.payload.llm_budget } };
     case "agent_started":
       return { ...s, phase: s.phase === "idle" ? "running" : s.phase,

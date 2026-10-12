@@ -1,0 +1,529 @@
+{
+ "audit_id": "after-straddle-sell",
+ "idea": "sell straddles on low-volatility mega-caps",
+ "created": "2026-10-11T19:51:20Z",
+ "llm_calls": 4,
+ "cost": {
+  "prompt_tokens": 7764,
+  "completion_tokens": 7439,
+  "usd": 0.03653706
+ },
+ "recoveries": [],
+ "injected_used": false,
+ "steps": {
+  "plan": {
+   "status": "done",
+   "result": {
+    "plan": {
+     "refused": false,
+     "family": "straddle_sell",
+     "universe_group": "mega_cap",
+     "conditions": {
+      "vol_20d": [
+       "<",
+       0.02
+      ]
+     },
+     "hypothesis": "Selling 10-day at-the-money straddles on mega-cap stocks when 20-day realized volatility is below 2% will be profitable.",
+     "assumptions": [
+      "'sell straddles' read as short at-the-money straddle held for 10 days (family straddle_sell).",
+      "'low-volatility' read as 20-day daily return standard deviation below 0.02 (2%).",
+      "'mega-caps' mapped to the mega_cap universe group."
+     ],
+     "not_tested": [
+      "Option bid-ask spreads, liquidity, and exact strike selection.",
+      "Margin requirements and capital allocation.",
+      "Early assignment risk and dividend effects."
+     ],
+     "core_trigger_tested": true
+    },
+    "hash": "b8d1dc5558d2a84a50902e138f649716d91cf89650532835f5e45cf52e4957db",
+    "raw_replies": [
+     {
+      "refuse": {
+       "is_refused": false,
+       "reason": ""
+      },
+      "family": "straddle_sell",
+      "universe_group": "mega_cap",
+      "conditions": [
+       {
+        "feature": "vol_20d",
+        "op": "<",
+        "value": 0.02
+       }
+      ],
+      "hypothesis": "Selling 10-day at-the-money straddles on mega-cap stocks when 20-day realized volatility is below 2% will be profitable.",
+      "assumptions": [
+       "'sell straddles' read as short at-the-money straddle held for 10 days (family straddle_sell).",
+       "'low-volatility' read as 20-day daily return standard deviation below 0.02 (2%).",
+       "'mega-caps' mapped to the mega_cap universe group."
+      ],
+      "not_tested": [
+       "Option bid-ask spreads, liquidity, and exact strike selection.",
+       "Margin requirements and capital allocation.",
+       "Early assignment risk and dividend effects."
+      ],
+      "core_trigger_tested": true
+     }
+    ],
+    "errors": [],
+    "what_tested": "straddle_sell on mega_cap (10 tickers): enter when vol_20d < 0.02; hold 10 days. Not tested: Option bid-ask spreads, liquidity, and exact strike selection.; Margin requirements and capital allocation.; Early assignment risk and dividend effects.."
+   },
+   "finished": "2026-10-11T19:51:31Z"
+  },
+  "data": {
+   "status": "done",
+   "result": {
+    "coverage": {
+     "rows_per_ticker_year": {
+      "AAPL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "MSFT": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "NVDA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "GOOGL": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AMZN": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "META": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "AVGO": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "TSLA": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "BRK-B": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      },
+      "LLY": {
+       "2014": 252,
+       "2015": 252,
+       "2016": 252,
+       "2017": 251,
+       "2018": 251,
+       "2019": 252,
+       "2020": 253,
+       "2021": 252,
+       "2022": 251,
+       "2023": 250,
+       "2024": 252,
+       "2025": 250,
+       "2026": 143
+      }
+     },
+     "skipped": [],
+     "iv_rows": 11321,
+     "iv_range": [
+      "2019-06-01",
+      "2026-06-30"
+     ],
+     "earnings_first_date": {
+      "AAPL": "2002-04-17",
+      "MSFT": "2002-01-17",
+      "NVDA": "2002-05-22",
+      "GOOGL": "2004-10-21",
+      "AMZN": "2002-04-23",
+      "META": "2012-07-26",
+      "AVGO": "2009-12-03",
+      "TSLA": "2010-11-09",
+      "BRK-B": "2010-05-07",
+      "LLY": "2002-01-24"
+     },
+     "tickers_without_earnings": []
+    }
+   },
+   "finished": "2026-10-11T19:51:32Z"
+  },
+  "backtest": {
+   "status": "done",
+   "result": {
+    "base": {
+     "train": {
+      "n": 780,
+      "blocks": 144,
+      "win_rate": 0.5769230769230769,
+      "mean": -0.04436952974412338,
+      "median": 0.1625819641419915,
+      "ci_low": -0.11829019578976756,
+      "ci_high": 0.025623278966623413,
+      "worst_trade": -4.378026072270752,
+      "worst_window": -12.765357105907299
+     },
+     "validation": {
+      "n": 70,
+      "blocks": 12,
+      "win_rate": 0.5285714285714286,
+      "mean": -0.10177877789736467,
+      "median": 0.02573275612185667,
+      "ci_low": -0.23940963839482804,
+      "ci_high": 0.041773702977189416,
+      "worst_trade": -2.083673327776449,
+      "worst_window": -4.409729374592736
+     }
+    },
+    "baseline": {
+     "train": {
+      "n": 1267,
+      "blocks": 143,
+      "win_rate": 0.5769534333070244,
+      "mean": -0.05219089123218096,
+      "median": 0.15602915988121238,
+      "ci_low": -0.1276336305405182,
+      "ci_high": 0.0179610328998382,
+      "worst_trade": -6.344933635896669,
+      "worst_window": -17.2975493035896
+     },
+     "validation": {
+      "n": 120,
+      "blocks": 12,
+      "win_rate": 0.5916666666666667,
+      "mean": 0.020238617571961392,
+      "median": 0.18410919027703848,
+      "ci_low": -0.12692859514446828,
+      "ci_high": 0.18345345379697672,
+      "worst_trade": -2.0421777646434767,
+      "worst_window": -4.824578710383459
+     },
+     "paired_ci_low": -0.21367610449973334
+    },
+    "random_baseline": {
+     "train": {
+      "n": 725,
+      "blocks": 142,
+      "win_rate": 0.5917241379310345,
+      "mean": -0.044404631437166324,
+      "median": 0.15602915988121238,
+      "ci_low": -0.12438991822235672,
+      "ci_high": 0.02876551949684019,
+      "worst_trade": -4.37086955883604,
+      "worst_window": -10.480233467749043
+     },
+     "validation": {
+      "n": 76,
+      "blocks": 12,
+      "win_rate": 0.618421052631579,
+      "mean": 0.08226062415554326,
+      "median": 0.24512572784644537,
+      "ci_low": -0.059081899838860086,
+      "ci_high": 0.23838564251080746,
+      "worst_trade": -2.0421777646434767,
+      "worst_window": -2.102280721043903
+     }
+    },
+    "stricter": {
+     "train": {
+      "n": 780,
+      "blocks": 144,
+      "win_rate": 0.5333333333333333,
+      "mean": -0.16041058860458152,
+      "median": 0.06953551571332392,
+      "ci_low": -0.24254466198863056,
+      "ci_high": -0.08264080114819618,
+      "worst_trade": -4.975584524745281,
+      "worst_window": -14.961507895452554
+     },
+     "validation": {
+      "n": 70,
+      "blocks": 12,
+      "win_rate": 0.45714285714285713,
+      "mean": -0.2241986421081829,
+      "median": -0.0825191598646037,
+      "ci_low": -0.3771218204386978,
+      "ci_high": -0.06469588558090064,
+      "worst_trade": -2.4263036975293883,
+      "worst_window": -5.566365971769708
+     }
+    },
+    "tail": {
+     "worst_trade": -4.378026072270752,
+     "worst_window": -12.765357105907299,
+     "fails": true,
+     "worst_trade_pct": -0.2525594408175753,
+     "worst_trade_premiums": -5.8942795410794195,
+     "worst_window_vs_gain": {
+      "worst_window": -12.765357105907299,
+      "validation_total_gain": -7.124514452815527
+     }
+    },
+    "drops": {
+     "train": {
+      "exit_after_cutoff": 34,
+      "exit_past_data": 0,
+      "stale_iv": 400,
+      "earnings_in_window": 140
+     },
+     "validation": {
+      "exit_after_cutoff": 0,
+      "exit_past_data": 0,
+      "stale_iv": 0,
+      "earnings_in_window": 11
+     }
+    },
+    "dates_max": "2026-06-30",
+    "n_trades": {
+     "train": 780,
+     "validation": 70
+    }
+   },
+   "finished": "2026-10-11T19:51:33Z"
+  },
+  "choose": {
+   "status": "done",
+   "result": {
+    "checks": [
+     {
+      "check": "evidence",
+      "passed": true,
+      "value": {
+       "n": 70,
+       "blocks": 12
+      },
+      "note": "validation needs n >= 30 and at least 6 distinct 10-trading-day blocks"
+     },
+     {
+      "check": "leakage",
+      "passed": true,
+      "value": "2026-06-30",
+      "note": "no feature or trade date after 2026-06-30 (earnings features exempt, see caveat)"
+     },
+     {
+      "check": "decay",
+      "passed": false,
+      "value": {
+       "train_mean": -0.04436952974412338,
+       "validation_mean": -0.10177877789736467
+      },
+      "note": "validation mean -10.18% vs train mean -4.44%"
+     },
+     {
+      "check": "shared_window",
+      "passed": true,
+      "value": 5,
+      "note": "5 earlier audit(s) used this validation window. About 5% of plans with no real edge pass this test by chance; testing many variants of one idea raises that."
+     },
+     {
+      "check": "cost_realism",
+      "passed": false,
+      "value": {
+       "earnings_share": 0.15714285714285714,
+       "stricter_ci_low": -0.3771218204386978
+      },
+      "note": "16% of validation trades had earnings in the window (priced x1.20); stricter-cost lower bound -37.71%"
+     },
+     {
+      "check": "tail_risk",
+      "passed": false,
+      "value": {
+       "worst_trade": -4.378026072270752,
+       "worst_window": -12.765357105907299,
+       "worst_trade_pct": -0.2525594408175753,
+       "worst_trade_premiums": -5.8942795410794195,
+       "worst_window_vs_gain": {
+        "worst_window": -12.765357105907299,
+        "validation_total_gain": -7.124514452815527
+       }
+      },
+      "note": "worst trade -437.80%, worst 10-day window -1276.54% (train plus validation)"
+     },
+     {
+      "check": "data_drops",
+      "passed": true,
+      "value": {
+       "train": {
+        "exit_after_cutoff": 34,
+        "exit_past_data": 0,
+        "stale_iv": 400,
+        "earnings_in_window": 140
+       },
+       "validation": {
+        "exit_after_cutoff": 0,
+        "exit_past_data": 0,
+        "stale_iv": 0,
+        "earnings_in_window": 11
+       }
+      },
+      "note": "setups dropped for exits past the cutoff or the data, stale implied vol, missing earnings coverage"
+     }
+    ],
+    "window_count": 5,
+    "doubts": [
+     "The base validation mean is -10.18%, already negative and worse than the train mean of -4.44%, so there is no positive result to defend.",
+     "The stricter-cost lower bound is -37.71% in validation, and 16% of validation trades had earnings in the window, so costs and earnings timing may be driving the negative performance.",
+     "Tail risk check failed with a worst trade of -437.80% and worst 10-day window of -1276.54%, meaning the loss tail dominates any positive median or win rate."
+    ],
+    "chosen": [],
+    "ignored": [],
+    "note": null,
+    "budget_hit": false,
+    "disabled": false
+   },
+   "finished": "2026-10-11T19:52:12Z"
+  },
+  "followups": {
+   "status": "done",
+   "result": {
+    "runs": []
+   },
+   "finished": "2026-10-11T19:52:12Z"
+  },
+  "critique": {
+   "status": "done",
+   "result": {
+    "critique": "The validation result is worse than training, with mean -10.18% versus -4.44%, and the stricter-cost confidence interval is entirely negative, so whatever edge existed does not survive out-of-sample. The no-condition baseline has a validation mean of +2.02% while the conditioned strategy is negative, suggesting the vol<2% filter adds no value or is detrimental. Tail risk is severe: the worst trade is -437.80% and the worst 10-day window is -1,276.54%, which implies losses far beyond collected premium and casts doubt on realistic viability. The cost realism check fails because earnings events are only partially priced and option bid-ask spreads, liquidity, margin, and early assignment are not modeled. The validation window has been reused in five earlier audits, increasing false-discovery risk, and the sample is small with only 70 validation trades after filters.",
+    "doubts": [
+     "Validation mean is more negative than training, indicating decay rather than a stable edge.",
+     "The no-condition baseline outperforms the conditional strategy in validation, suggesting the condition may be curve-fit or harmful.",
+     "Stricter-cost validation CI (-37.71% to -6.47%) is entirely below zero, so realistic costs likely erase any profit.",
+     "Worst trade (-437.80%) and worst 10-day window (-1,276.54%) indicate extreme tail risk not controlled by short straddles.",
+     "Large numbers of train setups were dropped for stale implied volatility (400) and earnings-in-window (140), which could bias the remaining sample.",
+     "The validation window was shared by five earlier audits, raising multiple-testing and false-discovery concerns.",
+     "Only 70 validation trades and 12 blocks remain after filtering, limiting statistical power.",
+     "Option bid-ask spreads, exact strike selection, liquidity, margin requirements, and early assignment or dividend effects were not tested."
+    ],
+    "budget_hit": false
+   },
+   "finished": "2026-10-11T19:52:25Z"
+  },
+  "verdict": {
+   "status": "done",
+   "result": {
+    "verdict": "kill",
+    "reason": "validation mean <= 0 with enough evidence",
+    "headline": {
+     "n": 70,
+     "mean": -0.10177877789736467,
+     "ci_low": -0.23940963839482804,
+     "paired_ci_low": -0.21367610449973334
+    },
+    "downgrades": []
+   },
+   "finished": "2026-10-11T19:52:25Z"
+  },
+  "report": {
+   "status": "done",
+   "result": {
+    "path": "D:\\zeesh\\projects\\trading-swarm\\.claude\\worktrees\\demo-694260\\runs\\audits\\after-straddle-sell\\report.md",
+    "prose_included": true
+   },
+   "finished": "2026-10-11T19:52:26Z"
+  }
+ },
+ "started": "2026-10-11T19:51:20Z"
+}
